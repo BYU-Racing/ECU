@@ -4,19 +4,6 @@
 #include "Brake.h"
 
 constexpr int HORN_PIN = 12;
-constexpr int BRAKE_THRESHOLD = 50;
-
-constexpr int MIN_THROTTLE_OUTPUT = 0;
-constexpr int MAX_THROTTLE_OUTPUT = 5000;
-
-constexpr int MIN_THROTTLE_READ_POS = 36;
-constexpr int MAX_THROTTLE_READ_POS = 500;
-
-constexpr int MIN_THROTTLE_READ_NEG = 679;
-constexpr int MAX_THROTTLE_READ_NEG = 962;
-constexpr int THROTTLE_ERROR_TOL = 1600;
-constexpr int THROTTLE_MAINTAIN_TOL = 2;
-constexpr int THROTTLE_NOISE_REDUCTION_THRESHOLD = 60;
 
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
