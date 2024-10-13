@@ -15,7 +15,7 @@ class Brake {
         Brake();
         Brake(int pin);
 
-        void updateValue(int* data);
+        void updateValue(int data);
 
         bool checkError();
 

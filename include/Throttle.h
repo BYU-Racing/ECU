@@ -42,8 +42,8 @@ class Throttle {
 
         bool getError();
 
-        void setThrottle1(int* input);
-        void setThrottle2(int* input);
+        void setThrottle1(int input);
+        void setThrottle2(int input);
 
         int consultMAGI(int input);
 

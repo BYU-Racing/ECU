@@ -4,6 +4,7 @@
 #include "SensorData.h"
 #include "Throttle.h"
 #include "Brake.h"
+#include "BufferPacker.h"
 
 
 //THE ECU MONITORS EVERYTHING ABOUT THE CAR AND DECIDES WHAT SHOULD BE DONE
@@ -126,7 +127,7 @@ class ECU {
 
         void InitialStart(); // -> HORN + COMMAND MOTOR
 
-        void route(SensorData* data); // -> ROUTES DATA TO CORRECT SENSOR OP
+        void route(); // -> ROUTES DATA TO CORRECT SENSOR OP
 
         void shutdown();
 
@@ -134,21 +135,21 @@ class ECU {
 
 
         //Individual Sensor Operations
-        void updateThrottle(SensorData* msg);
+        void updateThrottle();
 
-        void updateBrake(SensorData* msg);
+        void updateBrake();
 
-        void updateSwitch(SensorData* msg);
+        void updateSwitch();
 
-        void updateWheelSpeed(SensorData* msg);
+        void updateWheelSpeed();
 
-        void updateAccelerometer(SensorData* msg);
+        void updateAccelerometer();
 
-        void updateCoolant(SensorData* msg);
+        void updateCoolant();
 
-        void updateSteering(SensorData* msg);
+        void updateSteering();
 
-        void updateDriveMode(SensorData* msg);
+        void updateDriveMode();
 
 
         //ACTION FUNCTIONS
@@ -179,9 +180,9 @@ class ECU {
         bool reportDiagnostics();
 
 
-        void calibrateThrottleMin(SensorData* data);
+        void calibrateThrottleMin();
 
-        void calibrateThrottleMax(SensorData* data);
+        void calibrateThrottleMax();
 
         void throwError(int code);
 
