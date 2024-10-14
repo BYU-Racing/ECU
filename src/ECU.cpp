@@ -7,9 +7,6 @@ constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
 
 
-constexpr int CALIBRATE_THROTTLE_MIN_ID = 207;
-constexpr int CALIBRATE_THROTTLE_MAX_ID = 208;
-
 
 ECU::ECU() {
     throttle = Throttle();
