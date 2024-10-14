@@ -1,10 +1,11 @@
 #ifndef ECU_H
 #define ECU_H
 
-#include "SensorData.h"
+#include "FlexCAN_T4.h"
 #include "Throttle.h"
 #include "Brake.h"
-
+#include "BufferPacker.h"
+#include "Reserved.h"
 
 //THE ECU MONITORS EVERYTHING ABOUT THE CAR AND DECIDES WHAT SHOULD BE DONE
 
@@ -27,6 +28,7 @@ class ECU {
         int driveMode = 0; //0 = Full beans, 1 = Endurance, 2 = SkidPad
 
         //MONITORING VARS
+        BufferPacker<8> unpacker;
 
         //Diagnostics
         int data1Health = 0;
@@ -126,7 +128,7 @@ class ECU {
 
         void InitialStart(); // -> HORN + COMMAND MOTOR
 
-        void route(SensorData* data); // -> ROUTES DATA TO CORRECT SENSOR OP
+        void route(); // -> ROUTES DATA TO CORRECT SENSOR OP
 
         void shutdown();
 
@@ -134,21 +136,21 @@ class ECU {
 
 
         //Individual Sensor Operations
-        void updateThrottle(SensorData* msg);
+        void updateThrottle();
 
-        void updateBrake(SensorData* msg);
+        void updateBrake();
 
-        void updateSwitch(SensorData* msg);
+        void updateSwitch();
 
-        void updateWheelSpeed(SensorData* msg);
+        void updateWheelSpeed();
 
-        void updateAccelerometer(SensorData* msg);
+        void updateAccelerometer();
 
-        void updateCoolant(SensorData* msg);
+        void updateCoolant();
 
-        void updateSteering(SensorData* msg);
+        void updateSteering();
 
-        void updateDriveMode(SensorData* msg);
+        void updateDriveMode();
 
 
         //ACTION FUNCTIONS
@@ -179,9 +181,9 @@ class ECU {
         bool reportDiagnostics();
 
 
-        void calibrateThrottleMin(SensorData* data);
+        void calibrateThrottleMin();
 
-        void calibrateThrottleMax(SensorData* data);
+        void calibrateThrottleMax();
 
         void throwError(int code);
 

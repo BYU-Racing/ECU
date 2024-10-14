@@ -1,6 +1,6 @@
 #ifndef THROTTLE_H
 #define THROTTLE_H
-
+#include <Arduino.h>
 class Throttle {
     private:
         int throttle1 = 0;
@@ -42,8 +42,8 @@ class Throttle {
 
         bool getError();
 
-        void setThrottle1(int* input);
-        void setThrottle2(int* input);
+        void setThrottle1(int input);
+        void setThrottle2(int input);
 
         int consultMAGI(int input);
 

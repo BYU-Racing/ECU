@@ -1,5 +1,4 @@
 #include "Throttle.h"
-#include "Arduino.h"
 
 constexpr int MIN_THROTTLE_OUTPUT = 0;
 constexpr int MAX_THROTTLE_OUTPUT = 3100;
@@ -45,23 +44,24 @@ int Throttle::checkError() {
     return 0;
 }
 
-void Throttle::setThrottle1(int* input) {
+void Throttle::setThrottle1(int input) {
 
-    readIn1 = (input[0] * 100) + input[1];
-
-    this->throttle1 = map(readIn1, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
+    this->throttle1 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
-void Throttle::setThrottle2(int* input) {
-    readIn2 = (input[0] * 100) + input[1];
+void Throttle::setThrottle2(int input) {
 
-    this->throttle2 = map(-readIn2, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
+    this->throttle2 = map(-input, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
 int Throttle::calculateTorque() {
     torque = (throttle1 + throttle2) / 2;
 
     torque = consultMAGI(torque);
+
+    if(torque < 0) {
+        torque = 0;
+    }
 
     return torque;
 }

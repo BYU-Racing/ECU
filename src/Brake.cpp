@@ -1,9 +1,9 @@
 #include "Brake.h"
-#include "Arduino.h"
+
 
 
 constexpr int BRAKE_THRESHOLD = 50;
-
+constexpr int BL_PIN = 13; //PLACEHOLDER
 
 // TODO: Add signal filtering for the brake?
 // Strong error handling should help? driving dynamics might be worse without it tho
@@ -17,14 +17,20 @@ bool Brake::getBrakeActive() {
     return (brakeVal >= BRAKE_THRESHOLD);
 }
 
-void Brake::updateValue(int* data) {
-    brakeVal = (data[0] * 100) + data[1];
+void Brake::updateValue(int data) {
 
+    updateLight(); // call before updating brakeActive
     brakeActive = getBrakeActive();
-
     checkError();
 }
 
+void Brake::updateLight() {
+    if(brakeActive && !getBrakeActive()) {
+        digitalWrite(BL_PIN, LOW);
+    } else if(!brakeActive && getBrakeActive()) {
+        digitalWrite(BL_PIN, HIGH);
+    }
+}
 
 bool Brake::checkError() {
     //Check if the pull-down resistor is active on the brake

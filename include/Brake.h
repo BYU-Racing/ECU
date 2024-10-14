@@ -1,6 +1,8 @@
 #ifndef BRAKE_H
 #define BRAKE_H
 
+#include <Arduino.h>
+
 class Brake {
     private:
         int brakeVal;
@@ -15,7 +17,7 @@ class Brake {
         Brake();
         Brake(int pin);
 
-        void updateValue(int* data);
+        void updateValue(int data);
 
         bool checkError();
 
@@ -23,6 +25,7 @@ class Brake {
         bool getBrakeActive();
         int getBrakeVal();
         int getBrakeErrorState();
+        void updateLight();
 
 };
 
