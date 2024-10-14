@@ -22,6 +22,7 @@ ECU::ECU() {
 
     tractiveActive = true; //For testing until we come up with a good way to read tractive
     pinMode(HORN_PIN, OUTPUT);
+    pinMode(BL_PIN, OUTPUT);
 }
 
 void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> motorCANin) {

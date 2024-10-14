@@ -23,6 +23,7 @@ class Brake {
         bool getBrakeActive();
         int getBrakeVal();
         int getBrakeErrorState();
+        void updateLight();
 
 };
 

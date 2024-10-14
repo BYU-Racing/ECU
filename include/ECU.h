@@ -1,7 +1,7 @@
 #ifndef ECU_H
 #define ECU_H
 
-#include "SensorData.h"
+#include "FlexCAN_T4.h"
 #include "Throttle.h"
 #include "Brake.h"
 #include "BufferPacker.h"
