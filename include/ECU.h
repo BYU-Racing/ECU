@@ -28,6 +28,7 @@ class ECU {
         int driveMode = 0; //0 = Full beans, 1 = Endurance, 2 = SkidPad
 
         //MONITORING VARS
+        BufferPacker<8> unpacker;
 
         //Diagnostics
         int data1Health = 0;

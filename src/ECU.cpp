@@ -161,7 +161,7 @@ void ECU::route() {
 ////////////////////////////////////////////
 
 void ECU::updateThrottle() {
-    BufferPacker<8> unpacker(rmsg.buf);
+    unpacker.reset(rmsg.buf);
     if(rmsg.id == ReservedIDs::Throttle1Position) {
         throttle.setThrottle1(unpacker.unpack<int32_t>());
         throttle1UPDATE = true;
@@ -195,7 +195,7 @@ void ECU::updateThrottle() {
 
 
 void ECU::updateBrake() {
-    BufferPacker<8> unpacker(rmsg.buf);
+    unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
     brakeOK = (brake.getBrakeErrorState() != 2); 
 
