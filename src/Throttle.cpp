@@ -1,5 +1,4 @@
 #include "Throttle.h"
-#include "Arduino.h"
 
 constexpr int MIN_THROTTLE_OUTPUT = 0;
 constexpr int MAX_THROTTLE_OUTPUT = 3100;

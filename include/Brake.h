@@ -1,6 +1,8 @@
 #ifndef BRAKE_H
 #define BRAKE_H
 
+#include <Arduino.h>
+
 class Brake {
     private:
         int brakeVal;

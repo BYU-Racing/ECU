@@ -1,6 +1,6 @@
 #ifndef THROTTLE_H
 #define THROTTLE_H
-
+#include <Arduino.h>
 class Throttle {
     private:
         int throttle1 = 0;

@@ -1,9 +1,4 @@
 #include "ECU.h"
-#include "FlexCAN_T4.h"
-#include "Throttle.h"
-#include "Brake.h"
-
-#include <Reserved.h>
 
 constexpr int HORN_PIN = 12; //PLACEHOLDER
 constexpr int BL_PIN = 13; //PLACEHOLDER
@@ -43,7 +38,7 @@ bool ECU::runDiagnostics() {
 
 void ECU::askForDiagnostics() {
     //Just send the CAN message out for diagnositcs
-    rmsg.id = 200; // DIAGNOSTIC ID
+    rmsg.id = ReservedIDs::HealthCheck; // DIAGNOSTIC ID
 
     rmsg.len = 8;
 
@@ -65,13 +60,13 @@ bool ECU::reportDiagnostics() {
     timer = millis();
     while(millis() - timer <= 100) {
         if(comsCAN.read(rmsg)) {
-            if(rmsg.id == 201) {
+            if(rmsg.id == ReservedIDs::DC1) {
                 data1Health = rmsg.buf[0];
             }
-            if(rmsg.id == 202) {
+            if(rmsg.id == ReservedIDs::DC2) {
                 data2Health = rmsg.buf[0];
             }
-            if(rmsg.id == 203) {
+            if(rmsg.id == ReservedIDs::DC3) {
                 data3Health = rmsg.buf[0];
             }
         }
@@ -88,7 +83,7 @@ void ECU::InitialStart() {
     digitalWrite(HORN_PIN,LOW);
 
     //Send the driveState command for the dash
-    rmsg.id=203;
+    rmsg.id=ReservedIDs::DriveState;
     rmsg.buf[0]=1;
     rmsg.buf[1]=0;
     rmsg.buf[2]=0;
@@ -155,6 +150,9 @@ void ECU::route() {
         case ReservedIDs::DriveMode:
             updateDriveMode();
             break;
+        default:
+            break;
+
     }
 }
 
@@ -299,7 +297,7 @@ void ECU::sendMotorCommand(int torque) {
 
     if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
         Serial.println(torqueCommanded);
-        motorCommand.id = 192;
+        motorCommand.id = ReservedIDs::ControlCommand;
         motorCommand.buf[0] = torque % 256;
         motorCommand.buf[1] = torque / 256;
         motorCommand.buf[2] = 0;
@@ -312,7 +310,7 @@ void ECU::sendMotorCommand(int torque) {
     }
     else if(motorState || !driveState) { //Sends a torque Message of 0
         Serial.println(0);
-        motorCommand.id = 192;
+        motorCommand.id = ReservedIDs::ControlCommand;
         motorCommand.buf[0] = 0;
         motorCommand.buf[1] = 0;
         motorCommand.buf[2] = 0;
@@ -332,7 +330,7 @@ void ECU::shutdown() {
     driveState = false;
     BTOveride = false;
     Serial.println("SHUTDOWN");
-    rmsg.id=203;
+    rmsg.id=ReservedIDs::DriveState;
     rmsg.buf[0]=0;
     rmsg.buf[1]=0;
     rmsg.buf[2]=0;
@@ -391,7 +389,7 @@ void ECU::calibrateThrottleMax() {
 
 
 void ECU::throwError(int code) {
-    rmsg.id = 200; // DIAGNOSTIC ID
+    rmsg.id = ReservedIDs::Fault; // DIAGNOSTIC ID
 
     rmsg.len = 8;
 
