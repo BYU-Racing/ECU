@@ -35,7 +35,7 @@ bool ECU::runDiagnostics() {
 
 void ECU::askForDiagnostics() {
     //Just send the CAN message out for diagnositcs
-    rmsg.id = ReservedIDs::HealthCheck; // DIAGNOSTIC ID
+    rmsg.id = ReservedIDs::HealthCheckId; // DIAGNOSTIC ID
 
     rmsg.len = 8;
 
@@ -57,13 +57,13 @@ bool ECU::reportDiagnostics() {
     timer = millis();
     while(millis() - timer <= 100) {
         if(comsCAN.read(rmsg)) {
-            if(rmsg.id == ReservedIDs::DC1) {
+            if(rmsg.id == ReservedIDs::DCFId) {
                 data1Health = rmsg.buf[0];
             }
-            if(rmsg.id == ReservedIDs::DC2) {
+            if(rmsg.id == ReservedIDs::DCRId) {
                 data2Health = rmsg.buf[0];
             }
-            if(rmsg.id == ReservedIDs::DC3) {
+            if(rmsg.id == ReservedIDs::DCTId) {
                 data3Health = rmsg.buf[0];
             }
         }
@@ -80,7 +80,7 @@ void ECU::InitialStart() {
     digitalWrite(HORN_PIN,LOW);
 
     //Send the driveState command for the dash
-    rmsg.id=ReservedIDs::DriveState;
+    rmsg.id=ReservedIDs::DriveStateId;
     rmsg.buf[0]=1;
     rmsg.buf[1]=0;
     rmsg.buf[2]=0;
@@ -105,7 +105,7 @@ void ECU::run() {
         attemptStart();
         if(startFault) {
             //SEND MESSAGE TO DRIVER SCREEN ABOUT START FAULT!!
-            throwError(FaultSources::StartFault);
+            throwError(FaultSourcesIDs::StartFaultId);
         }
     }
 
@@ -126,25 +126,25 @@ void ECU::run() {
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
     switch (rmsg.id) {
-        case ReservedIDs::Throttle1Position:
+        case ReservedIDs::Throttle1PositionId:
             updateThrottle();
             break;
-        case ReservedIDs::Throttle2Position:
+        case ReservedIDs::Throttle2PositionId:
             updateThrottle();
             break;
-        case ReservedIDs::BrakePressure:
+        case ReservedIDs::BrakePressureId:
             updateBrake();
             break;
-        case ReservedIDs::StartSwitch:
+        case ReservedIDs::StartSwitchId:
             updateSwitch();
             break;
-        case ReservedIDs::ThrottleMin:
+        case ReservedIDs::ThrottleMinId:
             calibrateThrottleMin();
             break;
-        case ReservedIDs::ThrottleMax:
+        case ReservedIDs::ThrottleMaxId:
             calibrateThrottleMax();
             break;
-        case ReservedIDs::DriveMode:
+        case ReservedIDs::DriveModeId:
             updateDriveMode();
             break;
         default:
@@ -162,7 +162,7 @@ void ECU::route() {
 
 void ECU::updateThrottle() {
     unpacker.reset(rmsg.buf);
-    if(rmsg.id == ReservedIDs::Throttle1Position) {
+    if(rmsg.id == ReservedIDs::Throttle1PositionId) {
         throttle.setThrottle1(unpacker.unpack<int32_t>());
         throttle1UPDATE = true;
     } else {
@@ -200,7 +200,7 @@ void ECU::updateBrake() {
     brakeOK = (brake.getBrakeErrorState() != 2); 
 
     if(!brakeOK) {
-        throwError(FaultSources::BrakeZero);
+        throwError(FaultSourcesIDs::BrakeZeroId);
     }
 }
 
@@ -294,7 +294,7 @@ void ECU::sendMotorCommand(int torque) {
 
     if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
         Serial.println(torqueCommanded);
-        motorCommand.id = ReservedIDs::ControlCommand;
+        motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = torque % 256;
         motorCommand.buf[1] = torque / 256;
         motorCommand.buf[2] = 0;
@@ -307,7 +307,7 @@ void ECU::sendMotorCommand(int torque) {
     }
     else if(motorState || !driveState) { //Sends a torque Message of 0
         Serial.println(0);
-        motorCommand.id = ReservedIDs::ControlCommand;
+        motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = 0;
         motorCommand.buf[1] = 0;
         motorCommand.buf[2] = 0;
@@ -327,7 +327,7 @@ void ECU::shutdown() {
     driveState = false;
     BTOveride = false;
     Serial.println("SHUTDOWN");
-    rmsg.id=ReservedIDs::DriveState;
+    rmsg.id=ReservedIDs::DriveStateId;
     rmsg.buf[0]=0;
     rmsg.buf[1]=0;
     rmsg.buf[2]=0;
@@ -386,7 +386,7 @@ void ECU::calibrateThrottleMax() {
 
 
 void ECU::throwError(int code) {
-    rmsg.id = ReservedIDs::Fault; // DIAGNOSTIC ID
+    rmsg.id = ReservedIDs::FaultId; // DIAGNOSTIC ID
 
     rmsg.len = 8;
 
