@@ -22,6 +22,7 @@ void setup() {
   mainECU.setCAN(can2, can1);
 
   mainECU.boot();
+  pinMode(19, OUTPUT);
   
 }
 

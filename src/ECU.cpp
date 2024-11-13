@@ -1,6 +1,6 @@
 #include "ECU.h"
 
-constexpr int HORN_PIN = 12; //PLACEHOLDER
+constexpr int HORN_PIN = 19; 
 constexpr int BL_PIN = 13; //PLACEHOLDER
 
 constexpr int BTO_OFF_THRESHOLD = 120;
@@ -13,18 +13,19 @@ ECU::ECU() {
     brake = Brake();
 
     tractiveActive = true; //For testing until we come up with a good way to read tractive
-    pinMode(HORN_PIN, OUTPUT);
-    pinMode(BL_PIN, OUTPUT);
 }
 
 void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> motorCANin) {
     comsCAN = comsCANin;
     motorCAN = motorCANin;
+    
 }
 
 //Initial Diagnostics
 void ECU::boot() {
     carIsGood = runDiagnostics();
+    pinMode(HORN_PIN, OUTPUT);
+    pinMode(BL_PIN, OUTPUT);
 }
 
 bool ECU::runDiagnostics() {
@@ -118,13 +119,23 @@ void ECU::run() {
         route();
     }
 
-    if(!carIsGood) { // If something bad happened shutdown the car again just in case
+    if(!carIsGood) { // If something bad happened when running healthChecks
         shutdown();
     }
 }
 
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
+
+    Serial.print("BRAKE: ");
+    Serial.print(brake.getBrakeActive());
+    Serial.print(" VAL: ");
+    Serial.print(brake.getBrakeVal());
+    Serial.print(" Switch: ");
+    Serial.print(startSwitchState);
+    Serial.print("  Start Fault: ");
+    Serial.println(startFault);
+
     switch (rmsg.id) {
         case ReservedIDs::Throttle1PositionId:
             updateThrottle();
@@ -343,7 +354,11 @@ void ECU::shutdown() {
 
 
 bool ECU::attemptStart() {
+
+    //DEBUG
     carIsGood = true;
+    tractiveActive = true;
+
     if(brake.getBrakeActive() && !startFault && tractiveActive && carIsGood) {
         if(startSwitchState) {
             InitialStart();

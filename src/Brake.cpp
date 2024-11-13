@@ -17,8 +17,13 @@ bool Brake::getBrakeActive() {
     return (brakeVal >= BRAKE_THRESHOLD);
 }
 
+int Brake::getBrakeVal() {
+    return brakeVal;
+}
+
 void Brake::updateValue(int data) {
 
+    brakeVal = data;
     updateLight(); // call before updating brakeActive
     brakeActive = getBrakeActive();
     checkError();
