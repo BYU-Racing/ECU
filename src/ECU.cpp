@@ -24,7 +24,6 @@ void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4
 //Initial Diagnostics
 void ECU::boot() {
     carIsGood = runDiagnostics();
-    pinMode(HORN_PIN, OUTPUT);
     pinMode(BL_PIN, OUTPUT);
 }
 
@@ -104,10 +103,7 @@ void ECU::run() {
     if(!driveState) {
         //TODO: SHOULD THIS SEND A START FAULT NOTICE TO THE DRIVER???
         attemptStart();
-        if(startFault) {
-            //SEND MESSAGE TO DRIVER SCREEN ABOUT START FAULT!!
-            throwError(FaultSourcesIDs::StartFaultId);
-        }
+
     }
 
     // read coms CAN line 
@@ -366,10 +362,13 @@ bool ECU::attemptStart() {
         }
     } else if(prevStartSwitchState && !startSwitchState && startFault) { // If we were in the fault position but are switching the switch off.
         startFault = false;
+        //throwError(12); //Some error that the fault got cleared
     }
     if(startSwitchState && !prevStartSwitchState) { // If we just flicked on the switch and did not satisfy the start conditions
         startFault = true;
         Serial.println("Start Faulted");
+            //SEND MESSAGE TO DRIVER SCREEN ABOUT START FAULT!!
+        throwError(FaultSourcesIDs::StartFaultId);
     }
     return false;
 }
