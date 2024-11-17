@@ -31,13 +31,13 @@ int Throttle::checkError() {
 
     if(countMisMatch >= THROTTLE_MAINTAIN_TOL) {
         throttleError = true;
-        Serial.println("MISMATCH");
+        //Serial.println("MISMATCH");
         return 1;
     }
 
     if(readIn1 == 0 || readIn2 == 0) {
         throttleError = true;
-        Serial.println("0 THROTTLE THROWN");
+       // Serial.println("0 THROTTLE THROWN");
         return 2;
     }
 

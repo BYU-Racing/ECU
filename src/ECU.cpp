@@ -55,7 +55,7 @@ void ECU::askForDiagnostics() {
 bool ECU::reportDiagnostics() {
     //TODO: This should get tweaked once DCs are solidified
     timer = millis();
-    while(millis() - timer <= 100) {
+    while(millis() - timer <= 50) {
         if(comsCAN.read(rmsg)) {
             if(rmsg.id == ReservedIDs::DCFId) {
                 data1Health = rmsg.buf[0];
@@ -123,14 +123,9 @@ void ECU::run() {
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
 
-    Serial.print("BRAKE: ");
-    Serial.print(brake.getBrakeActive());
-    Serial.print(" VAL: ");
-    Serial.print(brake.getBrakeVal());
-    Serial.print(" Switch: ");
-    Serial.print(startSwitchState);
-    Serial.print("  Start Fault: ");
-    Serial.println(startFault);
+    if(rmsg.id >= 50) {
+        Serial.println(rmsg.id);
+    }
 
     switch (rmsg.id) {
         case ReservedIDs::Throttle1PositionId:
