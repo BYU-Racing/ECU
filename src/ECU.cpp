@@ -23,6 +23,7 @@ void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4
 
 //Initial Diagnostics
 void ECU::boot() {
+    delay(100); //Makes sure ECU is last to be online so others can respond
     carIsGood = runDiagnostics();
     pinMode(BL_PIN, OUTPUT);
 }
@@ -122,10 +123,6 @@ void ECU::run() {
 
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
-
-    if(rmsg.id >= 50) {
-        Serial.println(rmsg.id);
-    }
 
     switch (rmsg.id) {
         case ReservedIDs::Throttle1PositionId:
@@ -294,8 +291,19 @@ void ECU::sendMotorCommand(int torque) {
         checkBTOverride();
     }
 
+    Serial.print("BRAKE: ");
+    Serial.print(brakeOK);
+    Serial.print(" TOK: ");
+    Serial.print(throttleOK);
+    Serial.print(" BTO: ");
+    Serial.print(BTOveride);
+    Serial.print(" DS: ");
+    Serial.println(driveState);
+
+
     if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
-        Serial.println(torqueCommanded);
+        Serial.print("COMMANDED: ");
+        Serial.println(torque);
         motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = torque % 256;
         motorCommand.buf[1] = torque / 256;
@@ -308,6 +316,7 @@ void ECU::sendMotorCommand(int torque) {
         motorCAN.write(motorCommand);
     }
     else if(motorState || !driveState) { //Sends a torque Message of 0
+        Serial.print("COMMANDED: ");
         Serial.println(0);
         motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = 0;

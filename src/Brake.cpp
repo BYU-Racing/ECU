@@ -5,7 +5,6 @@
 constexpr int BRAKE_THRESHOLD = 50;
 constexpr int BL_PIN = 13; //PLACEHOLDER
 
-// TODO: Add signal filtering for the brake?
 // Strong error handling should help? driving dynamics might be worse without it tho
 
 Brake::Brake() {
@@ -39,7 +38,7 @@ void Brake::updateLight() {
 
 bool Brake::checkError() {
     //Check if the pull-down resistor is active on the brake
-    if(brakeVal <= 4) {
+    if(brakeVal <= 1) {
         
         if(errorState == 1 && (millis() - timeErrorStart) > 100) {
             errorState = 2; //Set critical error

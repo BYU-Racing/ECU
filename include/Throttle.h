@@ -6,7 +6,7 @@ class Throttle {
         int throttle1 = 0;
         int throttle2 = 0;
 
-        int maxTorque = 3100;
+        int maxTorque = 2200;
 
         int torque = 0;
         int rollingTorque = 0;
@@ -23,10 +23,10 @@ class Throttle {
         int readIn2 = 0;
         int magiMemory[4];
 
-        int minT1 = 90;
-        int maxT1 = 205;
-        int minT2 = 487;
-        int maxT2 = 666;
+        int minT1 = 8;
+        int maxT1 = 1023;
+        int minT2 = 8;
+        int maxT2 = 1023;
 
     public:
         Throttle();

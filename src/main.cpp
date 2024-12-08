@@ -20,7 +20,6 @@ void setup() {
   can2.setBaudRate(BAUDRATE);
 
   mainECU.setCAN(can2, can1);
-
   mainECU.boot();
   pinMode(19, OUTPUT);
   
