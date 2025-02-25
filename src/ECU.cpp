@@ -6,6 +6,8 @@ constexpr int BL_PIN = 13; //PLACEHOLDER
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
 
+constexpr int INVERTER_PING_FREQUENCY = 100;
+
 
 
 ECU::ECU() {
@@ -23,7 +25,7 @@ void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4
 
 //Initial Diagnostics
 void ECU::boot() {
-    delay(100); //Makes sure ECU is last to be online so others can respond
+    delay(150); //Makes sure ECU is last to be online so others can respond
     carIsGood = runDiagnostics();
     pinMode(BL_PIN, OUTPUT);
 }
@@ -56,7 +58,7 @@ void ECU::askForDiagnostics() {
 bool ECU::reportDiagnostics() {
     //TODO: This should get tweaked once DCs are solidified
     timer = millis();
-    while(millis() - timer <= 50) {
+    while(millis() - timer <= 150) {
         if(comsCAN.read(rmsg)) {
             if(rmsg.id == ReservedIDs::DCFId) {
                 data1Health = rmsg.buf[0];
@@ -106,7 +108,6 @@ void ECU::run() {
         attemptStart();
 
     }
-
     // read coms CAN line 
     if(comsCAN.read(rmsg)) {
         route();
@@ -116,9 +117,27 @@ void ECU::run() {
         route();
     }
 
+    if (millis() - INVERTER_PING_FREQUENCY >= lastInverterPing || lastInverterPing == 0) {
+        pingInverter();
+    }
+
     if(!carIsGood) { // If something bad happened when running healthChecks
         shutdown();
     }
+}
+
+void ECU::pingInverter() {
+    rmsg.len=8;
+    rmsg.buf[0]=0;
+    rmsg.buf[1]=0;
+    rmsg.buf[2]=0;
+    rmsg.buf[3]=0;
+    rmsg.buf[4]=0;
+    rmsg.buf[5]=0;
+    rmsg.buf[6]=0;
+    rmsg.buf[7]=0;
+    rmsg.id=192;
+    motorCAN.write(rmsg);
 }
 
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
@@ -172,13 +191,10 @@ void ECU::updateThrottle() {
         return;
     }
 
-    torqueCommanded = throttle.calculateTorque();
+    torqueRequested = throttle.calculateTorque();
 
     throttleCode = throttle.checkError();
 
-    //Calling check error twice could accidentally count a mismatch twice so we want to carry the value over
-    //This seems pointless but is used in the torque command poll to see if throttle is good to send command
-    //I just think its a bit easier to have this here and a smaller if statement (which arguably should be a function)
     throttleOK = (throttleCode == 0);
     
     if(!throttleOK) {
@@ -189,7 +205,7 @@ void ECU::updateThrottle() {
     throttle2UPDATE = false;
 
     //Send that command to the motor
-    sendMotorCommand(torqueCommanded);
+    sendMotorCommand(torqueRequested);
 }
 
 
@@ -380,12 +396,12 @@ bool ECU::attemptStart() {
 
 void ECU::checkBTOverride() {
 
-    if(BTOveride && !brake.getBrakeActive() && (torqueCommanded <= BTO_OFF_THRESHOLD)) {
+    if(BTOveride && !brake.getBrakeActive() && (torqueRequested <= BTO_OFF_THRESHOLD)) {
         BTOveride = false;
         Serial.println("BTO Set");
     }
 
-    if(torqueCommanded >= BTO_ON_THRESHOLD && !BTOveride && brake.getBrakeActive()) {
+    if(torqueRequested >= BTO_ON_THRESHOLD && !BTOveride && brake.getBrakeActive()) {
         BTOveride = true;
         Serial.println("BTO Released");
     }

@@ -30,35 +30,31 @@ int Throttle::checkError() {
     }
 
     if(countMisMatch >= THROTTLE_MAINTAIN_TOL) {
-        throttleError = true;
-        Serial.println("MISMATCH");
         return 1;
     }
 
     if(readIn1 == 0 || readIn2 == 0) {
-        Serial.println("READ 0");
-        throttleError = true;
         return 2;
     }
-
+    
     return 0;
 }
 
 void Throttle::setThrottle1(int input) {
     readIn1 = input;
 
-    this->throttle1 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
     Serial.print("T1: ");
-    Serial.println(this->throttle1);
+    Serial.println(input);
+    this->throttle1 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
 void Throttle::setThrottle2(int input) {
     readIn2 = input;
+    Serial.print("T2: ");
+    Serial.println(input);
     //Removing this so I can do the same throttle for testing on flatcar
     //this->throttle2 = map(-input, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
     this->throttle2 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
-    Serial.print("T2: ");
-    Serial.println(this->throttle2);
 }
 
 int Throttle::calculateTorque() {

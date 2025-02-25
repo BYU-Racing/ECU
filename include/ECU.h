@@ -35,6 +35,7 @@ class ECU {
         int data2Health = 0;
         int data3Health = 0;
         unsigned int timer = 0;
+        unsigned int lastInverterPing = 0;
 
         int wheelSpeed1Health = 0;
         int wheelSpeed2Health = 0;
@@ -89,7 +90,7 @@ class ECU {
         bool throttle1UPDATE;
         bool throttle2UPDATE;
 
-        int torqueCommanded;
+        int torqueRequested;
 
         int throttleCode;
 
@@ -132,6 +133,8 @@ class ECU {
 
         void shutdown();
 
+        void pingInverter();
+
 
 
 
@@ -152,6 +155,8 @@ class ECU {
 
         void updateDriveMode();
 
+        void updateGPS();
+
 
         //ACTION FUNCTIONS
         void sendMotorStartCommand();
@@ -168,11 +173,6 @@ class ECU {
 
         void checkBTOverride();
 
-
-
-
-        void sendError(int id, int reason); // -> When a sensor gives an odd reading send a message to dashboard for the screen to display
-        //A strong argument can be made for the above function to be handled by the DC
 
         bool runDiagnostics();
 
