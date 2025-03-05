@@ -27,5 +27,38 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  mainECU.run();
+  //mainECU.run();
+  CAN_message_t msg;
+  msg.id = 0x0C1;
+
+  msg.buf[0] = 141;
+  msg.buf[1] = 0;
+  msg.buf[2] = 0;
+  msg.buf[3] = 0;
+  msg.buf[4] = 0;
+  msg.buf[5] = 0;
+  msg.buf[6] = 0;
+  msg.buf[7] = 0;
+
+  can1.write(msg);
+  can2.write(msg);
+
+  unsigned long long previousUpdate = millis();
+  while (millis() - previousUpdate <= 500) {
+
+    if(can1.read(msg)) {
+      if(msg.id == 0x0C2) {
+        Serial.println("MOTOR RESPONSE HEARD");
+      }
+    }
+    if(can2.read(msg)) {
+      if(msg.id == 0x0C2) {
+        Serial.println("MOTOR RESPONSE HEARD");
+      }
+    }
+
+  }
+
+  Serial.println("LOOP RESTART");
+
 }

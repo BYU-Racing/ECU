@@ -331,6 +331,22 @@ void ECU::sendMotorCommand(int torque) {
         motorCommand.buf[7] = 0;
         motorCAN.write(motorCommand);
     }
+    //FOR DEBUG ONLY FOR DEBUG ONLY
+    else if(driveState) {
+        Serial.print("COMMANDED: ");
+        Serial.println(torque);
+
+        motorCommand.id = ReservedIDs::ControlCommandId;
+        motorCommand.buf[0] = torque % 256;
+        motorCommand.buf[1] = torque / 256;
+        motorCommand.buf[2] = 0;
+        motorCommand.buf[3] = 0;
+        motorCommand.buf[4] = 0;
+        motorCommand.buf[5] = 1; //RE AFFIRMS THE INVERTER IS ACTIVE
+        motorCommand.buf[6] = 0;
+        motorCommand.buf[7] = 0;
+        motorCAN.write(motorCommand);
+    }
     else if(motorState || !driveState) { //Sends a torque Message of 0
         Serial.print("COMMANDED: ");
         Serial.println(0);
