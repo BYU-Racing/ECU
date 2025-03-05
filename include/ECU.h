@@ -35,7 +35,6 @@ class ECU {
         int data2Health = 0;
         int data3Health = 0;
         unsigned int timer = 0;
-        unsigned int lastInverterPing = 0;
 
         int wheelSpeed1Health = 0;
         int wheelSpeed2Health = 0;
@@ -132,8 +131,6 @@ class ECU {
         void route(); // -> ROUTES DATA TO CORRECT SENSOR OP
 
         void shutdown();
-
-        void pingInverter();
 
 
 

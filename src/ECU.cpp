@@ -6,8 +6,6 @@ constexpr int BL_PIN = 13; //PLACEHOLDER
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
 
-constexpr int INVERTER_PING_FREQUENCY = 100;
-
 
 
 ECU::ECU() {
@@ -115,10 +113,6 @@ void ECU::run() {
     // read motor CAN line 
     if(motorCAN.read(rmsg)) {
         route();
-    }
-
-    if (millis() - INVERTER_PING_FREQUENCY >= lastInverterPing || lastInverterPing == 0) {
-        pingInverter();
     }
 
     if(!carIsGood) { // If something bad happened when running healthChecks

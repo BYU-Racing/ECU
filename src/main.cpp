@@ -27,38 +27,37 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  //mainECU.run();
-  CAN_message_t msg;
-  msg.id = 0x0C1;
+  mainECU.run();
 
-  msg.buf[0] = 141;
-  msg.buf[1] = 0;
-  msg.buf[2] = 0;
-  msg.buf[3] = 0;
-  msg.buf[4] = 0;
-  msg.buf[5] = 0;
-  msg.buf[6] = 0;
-  msg.buf[7] = 0;
+  //BELOW VERIFIES MC CONNECTION
+  // CAN_message_t msg;
+  // msg.id = 0x0C1;
 
-  can1.write(msg);
-  can2.write(msg);
+  // msg.buf[0] = 141;
+  // msg.buf[1] = 0;
+  // msg.buf[2] = 0;
+  // msg.buf[3] = 0;
+  // msg.buf[4] = 0;
+  // msg.buf[5] = 0;
+  // msg.buf[6] = 0;
+  // msg.buf[7] = 0;
 
-  unsigned long long previousUpdate = millis();
-  while (millis() - previousUpdate <= 500) {
+  // can1.write(msg);
+  // can2.write(msg);
 
-    if(can1.read(msg)) {
-      if(msg.id == 0x0C2) {
-        Serial.println("MOTOR RESPONSE HEARD");
-      }
-    }
-    if(can2.read(msg)) {
-      if(msg.id == 0x0C2) {
-        Serial.println("MOTOR RESPONSE HEARD");
-      }
-    }
+  // unsigned long long previousUpdate = millis();
+  // while (millis() - previousUpdate <= 500) {
 
-  }
-
-  Serial.println("LOOP RESTART");
-
+  //   if(can1.read(msg)) {
+  //     if(msg.id == 0x0C2) {
+  //       Serial.println("MOTOR RESPONSE HEARD 1");
+  //     }
+  //   }
+  //   if(can2.read(msg)) {
+  //     if(msg.id == 0x0C2) {
+  //       Serial.println("MOTOR RESPONSE HEARD 2");
+  //     }
+  //   }
+  // }
+  // Serial.println("LOOP RESTART");
 }
