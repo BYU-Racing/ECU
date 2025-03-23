@@ -21,7 +21,10 @@ void setup() {
 
   mainECU.setCAN(can2, can1);
   mainECU.boot();
-  pinMode(19, OUTPUT);
+
+  //Set output pins for BL/HORN
+  pinMode(16, OUTPUT);
+  pinMode(15, OUTPUT);
   
 }
 

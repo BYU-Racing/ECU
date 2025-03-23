@@ -1,7 +1,7 @@
 #include "ECU.h"
 
-constexpr int HORN_PIN = 19; 
-constexpr int BL_PIN = 13; //PLACEHOLDER
+constexpr int HORN_PIN = 15; 
+constexpr int BL_PIN = 16;
 
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
@@ -120,19 +120,6 @@ void ECU::run() {
     }
 }
 
-void ECU::pingInverter() {
-    rmsg.len=8;
-    rmsg.buf[0]=0;
-    rmsg.buf[1]=0;
-    rmsg.buf[2]=0;
-    rmsg.buf[3]=0;
-    rmsg.buf[4]=0;
-    rmsg.buf[5]=0;
-    rmsg.buf[6]=0;
-    rmsg.buf[7]=0;
-    rmsg.id=192;
-    motorCAN.write(rmsg);
-}
 
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
