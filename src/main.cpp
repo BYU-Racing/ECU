@@ -25,6 +25,9 @@ void setup() {
   //Set output pins for BL/HORN
   pinMode(16, OUTPUT);
   pinMode(15, OUTPUT);
+  pinMode(13, OUTPUT);
+  delay(100);
+  digitalWrite(13, HIGH);
   
 }
 

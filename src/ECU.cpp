@@ -26,6 +26,7 @@ void ECU::boot() {
     delay(150); //Makes sure ECU is last to be online so others can respond
     carIsGood = runDiagnostics();
     pinMode(BL_PIN, OUTPUT);
+    Serial.println("BOOTED");
 }
 
 bool ECU::runDiagnostics() {
@@ -112,6 +113,10 @@ void ECU::run() {
     }
     // read motor CAN line 
     if(motorCAN.read(rmsg)) {
+        Serial.print("READ M: ");
+        Serial.print(rmsg.id);
+        Serial.print(" : ");
+        Serial.println(rmsg.buf[0]);
         route();
     }
 
@@ -123,7 +128,6 @@ void ECU::run() {
 
 //ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
 void ECU::route() {
-
     switch (rmsg.id) {
         case ReservedIDs::Throttle1PositionId:
             updateThrottle();
