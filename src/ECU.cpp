@@ -3,8 +3,8 @@
 constexpr int HORN_PIN = 15; 
 constexpr int BL_PIN = 16;
 
-constexpr int BTO_OFF_THRESHOLD = 120;
-constexpr int BTO_ON_THRESHOLD = 300;
+constexpr int BTO_OFF_THRESHOLD = 200;
+constexpr int BTO_ON_THRESHOLD = 600;
 
 
 
@@ -26,6 +26,7 @@ void ECU::boot() {
     delay(150); //Makes sure ECU is last to be online so others can respond
     carIsGood = runDiagnostics();
     pinMode(BL_PIN, OUTPUT);
+    pinMode(HORN_PIN, OUTPUT);
     Serial.println("BOOTED");
 }
 
@@ -78,7 +79,9 @@ bool ECU::reportDiagnostics() {
 void ECU::InitialStart() {
     Serial.println("INITIAL START ACHIEVED");
     digitalWrite(HORN_PIN, HIGH);
+    Serial.println("HORN HIGH");
     delay(2000); // Delay for 2 seconds per rules
+    Serial.println("HORN LOW");
     digitalWrite(HORN_PIN,LOW);
 
     //Send the driveState command for the dash
@@ -113,10 +116,6 @@ void ECU::run() {
     }
     // read motor CAN line 
     if(motorCAN.read(rmsg)) {
-        Serial.print("READ M: ");
-        Serial.print(rmsg.id);
-        Serial.print(" : ");
-        Serial.println(rmsg.buf[0]);
         route();
     }
 
@@ -198,7 +197,6 @@ void ECU::updateBrake() {
     unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
     brakeOK = (brake.getBrakeErrorState() != 2); 
-
     if(!brakeOK) {
         throwError(FaultSourcesIDs::BrakeZeroId);
     }
@@ -292,35 +290,19 @@ void ECU::sendMotorCommand(int torque) {
         checkBTOverride();
     }
 
-    Serial.print("BRAKE: ");
-    Serial.print(brakeOK);
-    Serial.print(" TOK: ");
-    Serial.print(throttleOK);
-    Serial.print(" BTO: ");
-    Serial.print(BTOveride);
-    Serial.print(" DS: ");
-    Serial.println(driveState);
+    // Serial.print("BRAKE: ");
+    // Serial.print(brakeOK);
+    // Serial.print(" TOK: ");
+    // Serial.print(throttleOK);
+    // Serial.print(" BTO: ");
+    // Serial.print(BTOveride);
+    // Serial.print(" DS: ");
+    // Serial.println(driveState);
 
 
     if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
-        Serial.print("COMMANDED: ");
-        Serial.println(torque);
-        motorCommand.id = ReservedIDs::ControlCommandId;
-        motorCommand.buf[0] = torque % 256;
-        motorCommand.buf[1] = torque / 256;
-        motorCommand.buf[2] = 0;
-        motorCommand.buf[3] = 0;
-        motorCommand.buf[4] = 0;
-        motorCommand.buf[5] = 1; //RE AFFIRMS THE INVERTER IS ACTIVE
-        motorCommand.buf[6] = 0;
-        motorCommand.buf[7] = 0;
-        motorCAN.write(motorCommand);
-    }
-    //FOR DEBUG ONLY FOR DEBUG ONLY
-    else if(driveState) {
-        Serial.print("COMMANDED: ");
-        Serial.println(torque);
-
+        // Serial.print("COMMANDED: ");
+        // Serial.println(torque);
         motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = torque % 256;
         motorCommand.buf[1] = torque / 256;
@@ -333,8 +315,8 @@ void ECU::sendMotorCommand(int torque) {
         motorCAN.write(motorCommand);
     }
     else if(motorState || !driveState) { //Sends a torque Message of 0
-        Serial.print("COMMANDED: ");
-        Serial.println(0);
+        // Serial.print("COMMANDED: ");
+        // Serial.println(0);
         motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = 0;
         motorCommand.buf[1] = 0;
