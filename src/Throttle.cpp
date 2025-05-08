@@ -8,7 +8,7 @@ constexpr int MAX_THROTTLE_READ_POS = 1023;
 
 constexpr int MIN_THROTTLE_READ_NEG = 4;
 constexpr int MAX_THROTTLE_READ_NEG = 1023;
-constexpr int THROTTLE_ERROR_TOL = 1600;
+constexpr int THROTTLE_ERROR_TOL = 130;
 constexpr int THROTTLE_MAINTAIN_TOL = 20;
 constexpr int THROTTLE_NOISE_REDUCTION_THRESHOLD = 60;
 
@@ -42,18 +42,11 @@ int Throttle::checkError() {
 
 void Throttle::setThrottle1(int input) {
     readIn1 = input;
-
-    Serial.print("T1: ");
-    Serial.println(input);
     this->throttle1 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
 void Throttle::setThrottle2(int input) {
     readIn2 = input;
-    Serial.print("T2: ");
-    Serial.println(input);
-    //Removing this so I can do the same throttle for testing on flatcar
-    //this->throttle2 = map(-input, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
     this->throttle2 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 

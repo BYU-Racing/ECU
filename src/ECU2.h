@@ -61,8 +61,8 @@ typedef enum Drive_Modes : uint8_t
 
 constexpr int HORN_PIN = 15;
 constexpr int BL_PIN = 16;
-constexpr int BTO_OFF_THRESHOLD = 120;
-constexpr int BTO_ON_THRESHOLD = 300;
+constexpr int BTO_OFF_THRESHOLD = 200;
+constexpr int BTO_ON_THRESHOLD = 600;
 
 class ECU
 {

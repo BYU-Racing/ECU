@@ -23,10 +23,10 @@ class Throttle {
         int readIn2 = 0;
         int magiMemory[4];
 
-        int minT1 = 8;
-        int maxT1 = 1023;
-        int minT2 = 8;
-        int maxT2 = 1023;
+        int minT1 = 210;
+        int maxT1 = 1000;
+        int minT2 = 33;
+        int maxT2 = 170;
 
     public:
         Throttle();
