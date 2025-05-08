@@ -1,438 +1,482 @@
-#include "ECU.h"
+#include "ECU2.h"
+#include "Reserved.h"
 
-constexpr int HORN_PIN = 15; 
-constexpr int BL_PIN = 16;
-
-constexpr int BTO_OFF_THRESHOLD = 120;
-constexpr int BTO_ON_THRESHOLD = 300;
-
-
-
-ECU::ECU() {
+ECU::ECU()
+{
+    Serial.println("[ECU] Constructor");
     throttle = Throttle();
     brake = Brake();
-
-    tractiveActive = true; //For testing until we come up with a good way to read tractive
 }
 
-void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> motorCANin) {
-    comsCAN = comsCANin;
-    motorCAN = motorCANin;
-    
+ECU::~ECU()
+{
+    Serial.println("[ECU] Destructor: shutting down");
+    shutdown();
 }
 
-//Initial Diagnostics
-void ECU::boot() {
-    delay(150); //Makes sure ECU is last to be online so others can respond
-    carIsGood = runDiagnostics();
+/** Used to set communication ports, output pins, and get initial state */
+void ECU::begin(const FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>& motorCAN,
+               const FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>& dataCAN)
+{
+    this->motorCAN = motorCAN;
+    this->dataCAN = dataCAN;
     pinMode(BL_PIN, OUTPUT);
-    Serial.println("BOOTED");
+    pinMode(HORN_PIN, OUTPUT);
+    updateHealth();
+    Serial.println("[ECU] begin() complete");
 }
 
-bool ECU::runDiagnostics() {
-    askForDiagnostics(); //Starts Diagnostic Process
-
-    return (reportDiagnostics()); // Reads Diagnostics
+/** Send a health check can request to all DCs */
+void ECU::sendHealthCheckRequest()
+{
+    Serial.println("[ECU] sendHealthCheckRequest");
+    outMsg.id = HealthCheckId;
+    outMsg.len = 0;
+    dataCAN.write(outMsg);
 }
 
-void ECU::askForDiagnostics() {
-    //Just send the CAN message out for diagnositcs
-    rmsg.id = ReservedIDs::HealthCheckId; // DIAGNOSTIC ID
-
-    rmsg.len = 8;
-
-    rmsg.buf[0] = 0;
-    rmsg.buf[1] = 0;
-    rmsg.buf[2] = 0;
-    rmsg.buf[3] = 0;
-    rmsg.buf[4] = 0;
-    rmsg.buf[5] = 0;
-    rmsg.buf[6] = 0;
-    rmsg.buf[7] = 0;
-
-    // Write on the comsCAN
-    comsCAN.write(rmsg);
-}
-
-bool ECU::reportDiagnostics() {
-    //TODO: This should get tweaked once DCs are solidified
-    timer = millis();
-    while(millis() - timer <= 150) {
-        if(comsCAN.read(rmsg)) {
-            if(rmsg.id == ReservedIDs::DCFId) {
-                data1Health = rmsg.buf[0];
-            }
-            if(rmsg.id == ReservedIDs::DCRId) {
-                data2Health = rmsg.buf[0];
-            }
-            if(rmsg.id == ReservedIDs::DCTId) {
-                data3Health = rmsg.buf[0];
+/** Send and await health check from all DCs and update internal health */
+void ECU::updateHealth()
+{
+    Serial.println("[ECU] updateHealth()");
+    sendHealthCheckRequest();
+    Health worstHealth = HEALTHY; // Assume all sensors are healthy
+    const uint32_t timer = millis();
+    Serial.print("[ECU]   waiting responses until ");
+    Serial.println(timer + 150);
+    while (millis() - timer <= 150) // Wait 150 ms for responses
+    {
+        if (dataCAN.read(inMsg))
+        {
+            Serial.print("[ECU]   got CAN id=0x");
+            Serial.println(inMsg.id, HEX);
+            switch (inMsg.id)
+            {
+            case DCFId:
+            case DCRId:
+            case DCTId:
+                for (uint8_t i = 0; i < inMsg.len; i++)
+                {
+                    Health h = static_cast<Health>(inMsg.buf[i]);
+                    if (h < worstHealth)
+                    {
+                        Serial.print("[ECU]     new worstHealth=");
+                        Serial.println((uint8_t)h);
+                        worstHealth = h;
+                    }
+                }
+                break;
+            default:
+                break;
             }
         }
     }
-
-    return (data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
+    health = worstHealth;
+    lastHealthUpdate = timer;
+    Serial.print("[ECU]   final health=");
+    Serial.println((uint8_t)health);
 }
 
-//START + HORN
-void ECU::InitialStart() {
-    Serial.println("INITIAL START ACHIEVED");
+/** Initiate the startup sequence, if all conditions are met */
+void ECU::startup()
+{
+    Serial.println("[ECU] startup()");
     digitalWrite(HORN_PIN, HIGH);
     delay(2000); // Delay for 2 seconds per rules
-    digitalWrite(HORN_PIN,LOW);
-
-    //Send the driveState command for the dash
-    rmsg.id=ReservedIDs::DriveStateId;
-    rmsg.buf[0]=1;
-    rmsg.buf[1]=0;
-    rmsg.buf[2]=0;
-    rmsg.buf[3]=0;
-    rmsg.buf[4]=0;
-    rmsg.buf[5]=0;
-    rmsg.buf[6]=0;
-    rmsg.buf[7]=0;
-
-    comsCAN.write(rmsg);
-    //Start the motor
+    digitalWrite(HORN_PIN, LOW);
     driveState = true;
-
-    sendMotorStartCommand();
+    BTOverride = false;
+    outMsg.id = DriveStateId;
+    outMsg.len = 1;
+    outMsg.buf[0] = driveState;
+    dataCAN.write(outMsg);
+    enableInverter();
 }
 
+/** Initiate the shutdown sequence */
+void ECU::shutdown()
+{
+    driveState = false;
+    outMsg.id = DriveStateId;
+    outMsg.len = 1;
+    outMsg.buf[0] = driveState;
+    dataCAN.write(outMsg);
+    disableInverter();
+}
 
-//INGESTS MESSAGES AND ROUTES THEM (LOOP FUNCTION)
-void ECU::run() {
-    if(!driveState) {
-        //TODO: SHOULD THIS SEND A START FAULT NOTICE TO THE DRIVER???
-        attemptStart();
-
+/** Main operation entrypoint for infinite looping */
+void ECU::run()
+{
+    Serial.print("[ECU] run() driveState=");
+    Serial.print(driveState);
+    Serial.print(" health=");
+    Serial.print((uint8_t)health);
+    Serial.print(" dt=");
+    Serial.println(millis() - lastHealthUpdate);
+    if (!driveState)
+    {
+        // TODO: Should this send a notice to the driver?
+        Serial.println("[ECU]   driveState false -> attemptStartup");
+        attemptStartup();
     }
-    // read coms CAN line 
-    if(comsCAN.read(rmsg)) {
-        route();
+    // IMPORTANT: Reads must be separate to not
+    // skip the second call if the first returned true
+    if (motorCAN.read(inMsg))
+    {
+        Serial.print("[ECU]   motorCAN msg id=0x");
+        Serial.println(inMsg.id, HEX);
+        routeMsg();
     }
-    // read motor CAN line 
-    if(motorCAN.read(rmsg)) {
-        Serial.print("READ M: ");
-        Serial.print(rmsg.id);
-        Serial.print(" : ");
-        Serial.println(rmsg.buf[0]);
-        route();
+    if (dataCAN.read(inMsg))
+    {
+        Serial.print("[ECU]   dataCAN msg id=0x");
+        Serial.println(inMsg.id, HEX);
+        routeMsg();
     }
-
-    if(!carIsGood) { // If something bad happened when running healthChecks
+    if (millis() - lastHealthUpdate >= 3000)
+    {
+        Serial.println("[ECU]   health stale -> updateHealth");
+        updateHealth();
+    }
+    if (health == CRITICAL || health == UNKNOWN)
+    {
+        Serial.println("[ECU]   health fault -> shutdown");
         shutdown();
     }
 }
 
-
-//ROUTES DATA (READS ID AND SENDS IT TO THE RIGHT FUNCTION)
-void ECU::route() {
-    switch (rmsg.id) {
-        case ReservedIDs::Throttle1PositionId:
-            updateThrottle();
-            break;
-        case ReservedIDs::Throttle2PositionId:
-            updateThrottle();
-            break;
-        case ReservedIDs::BrakePressureId:
-            updateBrake();
-            break;
-        case ReservedIDs::StartSwitchId:
-            updateSwitch();
-            break;
-        case ReservedIDs::ThrottleMinId:
-            calibrateThrottleMin();
-            break;
-        case ReservedIDs::ThrottleMaxId:
-            calibrateThrottleMax();
-            break;
-        case ReservedIDs::DriveModeId:
-            updateDriveMode();
-            break;
-        default:
-            break;
-
+void ECU::attemptStartup()
+{
+    Serial.print("[ECU] attemptStartup: lockout=");
+    Serial.print((uint8_t)inverterLockout);
+    Serial.print(" brake=");
+    Serial.print(brake.getBrakeActive());
+    Serial.print(" startFault=");
+    Serial.print(startFault);
+    Serial.print(" tractiveActive=");
+    Serial.print(tractiveActive);
+    Serial.print(" startSwitch=");
+    Serial.println(startSwitch);
+    if (inverterLockout == LOCKED)
+    {
+        // Inverter is locked because of a fault, try unlocking
+        Serial.println("[ECU]   inverter locked -> disableInverter");
+        disableInverter();
+    }
+    else if (brake.getBrakeActive() && !startFault && tractiveActive && startSwitch)
+    {
+        // All start conditions are met - begin startup sequence
+        Serial.println("[ECU]   conditions met -> startup");
+        startup();
+    }
+    else if (prevStartSwitch && !startSwitch && startFault)
+    {
+        // We were in start fault but turned the switch off
+        Serial.println("[ECU]   clearing startFault");
+        startFault = false;
+    }
+    else if (startSwitch && !prevStartSwitch)
+    {
+        // We did not meet conditions but turned the switch on
+        Serial.println("[ECU]   bad startSwitch -> throwError");
+        startFault = true;
+        throwError(StartFaultId);
     }
 }
 
-
-
-
-////////////////////////////////////////////
-////////////UPDATE FUNCTIONS////////////////
-////////////////////////////////////////////
-
-void ECU::updateThrottle() {
-    unpacker.reset(rmsg.buf);
-    if(rmsg.id == ReservedIDs::Throttle1PositionId) {
-        throttle.setThrottle1(unpacker.unpack<int32_t>());
-        throttle1UPDATE = true;
-    } else {
-        throttle.setThrottle2(unpacker.unpack<int32_t>());
-        throttle2UPDATE = true;
+/** Routes the inMsg (by id) to the appropriate update function */
+void ECU::routeMsg()
+{
+    Serial.print("[ECU] routeMsg id=0x");
+    Serial.println(inMsg.id, HEX);
+    switch (inMsg.id)
+    {
+    case Throttle1PositionId:
+    case Throttle2PositionId:
+        updateThrottle();
+        break;
+    case BrakePressureId:
+        updateBrake();
+        break;
+    case StartSwitchId:
+        updateStartSwitch();
+        break;
+    case ThrottleMinId:
+        calibrateThrottleMin();
+        break;
+    case ThrottleMaxId:
+        calibrateThrottleMax();
+        break;
+    case DriveModeId:
+        updateDriveMode();
+        break;
+    case InternalStatesId:
+        updateInverter();
+        break;
+    default:
+        Serial.println("[ECU]   unknown CAN id");
+        break;
     }
-    if(!throttle1UPDATE || !throttle2UPDATE) { // exits if both haven't been updated
+}
+
+void ECU::updateThrottle()
+{
+    Serial.println("[ECU] updateThrottle");
+    unpacker.reset(inMsg.buf);
+    if (inMsg.id == Throttle1PositionId)
+    {
+        int32_t val = unpacker.unpack<int32_t>();
+        throttle.setThrottle1(val);
+        Serial.print("[ECU]   throttle1="); Serial.println(val);
+        updatedThrottle1 = true;
+    }
+    else
+    {
+        int32_t val = unpacker.unpack<int32_t>();
+        throttle.setThrottle2(val);
+        Serial.print("[ECU]   throttle2="); Serial.println(val);
+        updatedThrottle2 = true;
+    }
+    if (!updatedThrottle1 || !updatedThrottle2)
+        return;
+
+    int code = throttle.checkError();
+    if (code != 0)
+    {
+        Serial.print("[ECU]   throttle error code="); Serial.println(code);
+        throwError(code);
         return;
     }
-
-    torqueRequested = throttle.calculateTorque();
-
-    throttleCode = throttle.checkError();
-
-    throttleOK = (throttleCode == 0);
-    
-    if(!throttleOK) {
-        throwError(throttleCode);
-    }
-
-    throttle1UPDATE = false;
-    throttle2UPDATE = false;
-
-    //Send that command to the motor
-    sendMotorCommand(torqueRequested);
+    updatedThrottle1 = updatedThrottle2 = false;
+    int torque = throttle.calculateTorque();
+    Serial.print("[ECU]   calculated torque="); Serial.println(torque);
+    motorCommand(torque);
 }
 
+void ECU::calibrateThrottleMin()
+{
+    Serial.println("[ECU] calibrateThrottleMin");
+    unpacker.reset(inMsg.buf);
+    int32_t val = unpacker.unpack<int32_t>();
+    Serial.print("[ECU]   min="); Serial.println(val);
+    throttle.setCalibrationValueMin(val, val);
+}
 
-void ECU::updateBrake() {
-    unpacker.reset(rmsg.buf);
-    brake.updateValue(unpacker.unpack<int32_t>());
-    brakeOK = (brake.getBrakeErrorState() != 2); 
+void ECU::calibrateThrottleMax()
+{
+    Serial.println("[ECU] calibrateThrottleMax");
+    unpacker.reset(inMsg.buf);
+    int32_t val = unpacker.unpack<int32_t>();
+    Serial.print("[ECU]   max="); Serial.println(val);
+    throttle.setCalibrationValueMin(val, val);
+}
 
-    if(!brakeOK) {
-        throwError(FaultSourcesIDs::BrakeZeroId);
+void ECU::updateBrake()
+{
+    Serial.println("[ECU] updateBrake");
+    unpacker.reset(inMsg.buf);
+    int32_t val = unpacker.unpack<int32_t>();
+    Serial.print("[ECU]   brakePressure="); Serial.println(val);
+    brake.updateValue(val);
+    if (brake.getBrakeErrorState() == 2)
+    {
+        Serial.println("[ECU]   brake zero error");
+        throwError(BrakeZeroId);
     }
 }
 
-void ECU::updateSwitch() {
-    prevStartSwitchState = startSwitchState;
-
-    startSwitchState = (rmsg.buf[0] == 1);
-
-    if(!startSwitchState && driveState) {
-        //SHUTDOWN THE CAR!!!
+void ECU::updateStartSwitch()
+{
+    Serial.println("[ECU] updateStartSwitch");
+    prevStartSwitch = startSwitch;
+    startSwitch = (inMsg.buf[0] == 1);
+    Serial.print("[ECU]   startSwitch="); Serial.println(startSwitch);
+    if (!startSwitch && driveState)
+    {
+        // Turning off the switch shuts down the car
+        Serial.println("[ECU]   switch off -> shutdown");
         shutdown();
     }
 }
 
-
-//TODO: This dont really work for max RPM, needs further investigation into MCU control
-void ECU::updateDriveMode() {
-    if(rmsg.buf[0] == 0 && driveMode != 0) {
-        if(driveMode == 2) { //RESET MAX RPM
-            rmsg.id = 0x0C1;
-            rmsg.buf[0] = 128;
-            rmsg.buf[2] = 1; // 1 to write value
-
-            rmsg.buf[4] = 255; // Write values for max RPM
-            rmsg.buf[5] = 255;
-
-            motorCAN.write(rmsg);
-        }
-        driveMode = 0;
+void ECU::updateDriveMode()
+{
+#define MAX_SPEED_ADDRESS 128
+    Serial.println("[ECU] updateDriveMode");
+    uint8_t req = inMsg.buf[0];
+    Serial.print("[ECU]   req="); Serial.print(req);
+    Serial.print(" current="); Serial.println(driveMode);
+    auto sendParam = [&]() {
+        outMsg.id = ParameterCommandId;
+        outMsg.len = 8;
+        outMsg.buf[0] = MAX_SPEED_ADDRESS;
+        outMsg.buf[1] = 0;
+        outMsg.buf[2] = 1; // Write
+        outMsg.buf[3] = 0; // Unused
+        // Max RPM
+        outMsg.buf[4] = 255;
+        outMsg.buf[5] = 255;
+        outMsg.buf[6] = 0; // Unused
+        outMsg.buf[7] = 0; // Unused
+        motorCAN.write(outMsg);
+    };
+    if (req == FULL_BEANS && driveMode != FULL_BEANS)
+    {
+        Serial.println("[ECU]   switching to FULL_BEANS");
+        sendParam();
+        driveMode = FULL_BEANS;
         throttle.setMaxTorque(3100);
     }
-    else if(rmsg.buf[0] == 1 && driveMode != 1) {
-        if(driveMode == 2) { //RESET MAX RPM
-            rmsg.id = 0x0C1;
-            rmsg.buf[0] = 128;
-            rmsg.buf[2] = 1; // 1 to write value
-
-            rmsg.buf[4] = 255; // Write values for max RPM
-            rmsg.buf[5] = 255;
-
-            motorCAN.write(rmsg);
-        }
-        driveMode = 1;
+    else if (req == ENDURANCE && driveMode != ENDURANCE)
+    {
+        Serial.println("[ECU]   switching to ENDURANCE");
+        sendParam();
+        driveMode = ENDURANCE;
         throttle.setMaxTorque(1500);
     }
-    else if(rmsg.buf[0] == 2 && driveMode != 2) {
-        //TODO: VERIFY THIS WORKING!!
-        driveMode = 2;
-        // Call the rpm limiter to the motor
-        rmsg.id = 0x0C1;
-        rmsg.buf[0] = 128;
-        rmsg.buf[2] = 1; // 1 to write value
-
-        rmsg.buf[4] = 255; // Write values for max RPM
-        rmsg.buf[5] = 255;
-
-        motorCAN.write(rmsg); 
-
-        throttle.setMaxTorque(3100);
+    else if (req == SKID_PAD && driveMode != SKID_PAD)
+    {
+        Serial.println("[ECU]   switching to SKID_PAD");
+        sendParam();
+        driveMode = SKID_PAD;
+        throttle.setMaxTorque(1500);
+    }
+    else
+    {
+        Serial.println("[ECU]   no driveMode change");
     }
 }
 
-/////////////////////////////////////////
-////////////ACTION FUNCTIONS/////////////
-/////////////////////////////////////////
-
-
-//STOP/START BASE FUNCTIONS
-
-void ECU::sendMotorStartCommand() {
-    Serial.println("Motor start command sent");
-    motorState = true;
-    return;
+void ECU::updateInverter()
+{
+    // Cascadia Motion CM200DX Software docs:
+    // https://www.cascadiamotion.com/uploads/5/1/3/0/51309945/0a-0163-02_sw_user_manual.pdf
+    // Page 144-147 for msg id 0x0AA
+    Serial.print("[ECU] updateInverter raw buf: ");
+    for (uint8_t i = 0; i < inMsg.len; i++) { Serial.print(inMsg.buf[i], HEX); Serial.print(' '); }
+    Serial.println();
+    unpacker.reset(inMsg.buf);
+    vsmState = unpacker.unpack<VSMState>();
+    unpacker.skip<uint16_t>();
+    const uint8_t Relays = unpacker.unpack<uint8_t>();
+    prechargeRelay = Relays & 0b1;
+    mainRelay = Relays & 0b10;
+    unpacker.skip<uint16_t>();
+    const uint8_t Enabled = unpacker.unpack<uint8_t>();
+    inverterEnabled = Enabled & 0b1;
+    inverterLockout = static_cast<INV_Lockout>(Enabled & 0b10);
+    tractiveActive = vsmState == WAIT && prechargeRelay && mainRelay && inverterLockout == UNLOCKED;
 }
 
-void ECU::sendMotorStopCommand() {
-    //Serial.println("Motor stop command sent");
-    motorState = false;
-    return;
+/** Sends the command to enable the inverter. A check for tractiveActive is assumed to have been done before calling */
+void ECU::enableInverter()
+{
+    // Only enable the inverter when in VSM 4 and it has passed precharge
+    Serial.println("[ECU] enableInverter");
+    outMsg.id = ControlCommandId;
+    outMsg.len = 8;
+    // Ignore torque
+    outMsg.buf[0] = 0;
+    outMsg.buf[1] = 0;
+    // Ignore speed
+    outMsg.buf[2] = 0;
+    outMsg.buf[3] = 0;
+    // Command forward
+    outMsg.buf[4] = FORWARD;
+    // Set enable bit
+    outMsg.buf[5] = ENABLED;
+    // Ignore torque limit
+    outMsg.buf[6] = 0;
+    outMsg.buf[7] = 0;
+    motorCAN.write(outMsg);
 }
 
-void ECU::sendMotorCommand(int torque) {
-    //Send the command to the motor
-    if(!motorState && brakeOK && throttleOK && slipOK && driveState) { //If the motor has been commanded off but should be on
-        motorState = true;
-        //TODO: Determine if this needs to re start the inverter (it do not)
-    }
-    if(driveState) {
-        checkBTOverride();
-    }
-
-    Serial.print("BRAKE: ");
-    Serial.print(brakeOK);
-    Serial.print(" TOK: ");
-    Serial.print(throttleOK);
-    Serial.print(" BTO: ");
-    Serial.print(BTOveride);
-    Serial.print(" DS: ");
-    Serial.println(driveState);
-
-
-    if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
-        Serial.print("COMMANDED: ");
-        Serial.println(torque);
-        motorCommand.id = ReservedIDs::ControlCommandId;
-        motorCommand.buf[0] = torque % 256;
-        motorCommand.buf[1] = torque / 256;
-        motorCommand.buf[2] = 0;
-        motorCommand.buf[3] = 0;
-        motorCommand.buf[4] = 0;
-        motorCommand.buf[5] = 1; //RE AFFIRMS THE INVERTER IS ACTIVE
-        motorCommand.buf[6] = 0;
-        motorCommand.buf[7] = 0;
-        motorCAN.write(motorCommand);
-    }
-    //FOR DEBUG ONLY FOR DEBUG ONLY
-    else if(driveState) {
-        Serial.print("COMMANDED: ");
-        Serial.println(torque);
-
-        motorCommand.id = ReservedIDs::ControlCommandId;
-        motorCommand.buf[0] = torque % 256;
-        motorCommand.buf[1] = torque / 256;
-        motorCommand.buf[2] = 0;
-        motorCommand.buf[3] = 0;
-        motorCommand.buf[4] = 0;
-        motorCommand.buf[5] = 1; //RE AFFIRMS THE INVERTER IS ACTIVE
-        motorCommand.buf[6] = 0;
-        motorCommand.buf[7] = 0;
-        motorCAN.write(motorCommand);
-    }
-    else if(motorState || !driveState) { //Sends a torque Message of 0
-        Serial.print("COMMANDED: ");
-        Serial.println(0);
-        motorCommand.id = ReservedIDs::ControlCommandId;
-        motorCommand.buf[0] = 0;
-        motorCommand.buf[1] = 0;
-        motorCommand.buf[2] = 0;
-        motorCommand.buf[3] = 0;
-        motorCommand.buf[4] = 0;
-        motorCommand.buf[5] = 1; //RE AFFIRMS THE INVERTER IS ACTIVE
-        motorCommand.buf[6] = 0;
-        motorCommand.buf[7] = 0;
-        motorCAN.write(motorCommand); 
-    }
-
-    return;
+void ECU::disableInverter()
+{
+    Serial.println("[ECU] disableInverter");
+    outMsg.id = ControlCommandId;
+    outMsg.len = 8;
+    // Ignore torque
+    outMsg.buf[0] = 0;
+    outMsg.buf[1] = 0;
+    // Ignore speed
+    outMsg.buf[2] = 0;
+    outMsg.buf[3] = 0;
+    // Command forward
+    outMsg.buf[4] = FORWARD;
+    // Set enable bit to disable
+    outMsg.buf[5] = DISABLED;
+    // Ignore torque limit
+    outMsg.buf[6] = 0;
+    outMsg.buf[7] = 0;
+    motorCAN.write(outMsg);
 }
 
-
-void ECU::shutdown() {
-    driveState = false;
-    BTOveride = false;
-    Serial.println("SHUTDOWN");
-    rmsg.id=ReservedIDs::DriveStateId;
-    rmsg.buf[0]=0;
-    rmsg.buf[1]=0;
-    rmsg.buf[2]=0;
-    rmsg.buf[3]=0;
-    rmsg.buf[4]=0;
-    rmsg.buf[5]=0;
-    rmsg.buf[6]=0;
-    rmsg.buf[7]=0;
-
-    comsCAN.write(rmsg);
-    sendMotorStopCommand();
-}
-
-
-bool ECU::attemptStart() {
-
-    //DEBUG
-    carIsGood = true;
-    tractiveActive = true;
-
-    if(brake.getBrakeActive() && !startFault && tractiveActive && carIsGood) {
-        if(startSwitchState) {
-            InitialStart();
-            return true;
-        }
-    } else if(prevStartSwitchState && !startSwitchState && startFault) { // If we were in the fault position but are switching the switch off.
-        startFault = false;
-        //throwError(12); //Some error that the fault got cleared
+void ECU::motorCommand(const int torque)
+{
+    Serial.print("[ECU] motorCommand torque="); Serial.println(torque);
+    Serial.print("[ECU]   tractiveActive="); Serial.print(tractiveActive);
+    Serial.print(" invEnabled="); Serial.print(inverterEnabled);
+    Serial.print(" driveState="); Serial.println(driveState);
+    if (tractiveActive && !inverterEnabled)
+    {
+        Serial.println("[ECU]   -> enableInverter");
+        enableInverter();
     }
-    if(startSwitchState && !prevStartSwitchState) { // If we just flicked on the switch and did not satisfy the start conditions
-        startFault = true;
-        Serial.println("Start Faulted");
-            //SEND MESSAGE TO DRIVER SCREEN ABOUT START FAULT!!
-        throwError(FaultSourcesIDs::StartFaultId);
+    if (driveState)
+    {
+        updateBTOverride(torque);
     }
-    return false;
-}
-
-
-void ECU::checkBTOverride() {
-
-    if(BTOveride && !brake.getBrakeActive() && (torqueRequested <= BTO_OFF_THRESHOLD)) {
-        BTOveride = false;
-        Serial.println("BTO Set");
+    if (tractiveActive && driveState && !BTOverride)
+    {
+        Serial.println("[ECU]   -> send torque cmd");
+        outMsg.id = ControlCommandId;
+        outMsg.len = 8;
+        // Specify torque
+        outMsg.buf[0] = torque % 256;
+        outMsg.buf[1] = torque / 256;
+        // Ignore Speed
+        outMsg.buf[2] = 0;
+        outMsg.buf[3] = 0;
+        // Command forward
+        outMsg.buf[4] = FORWARD;
+        // Reaffirm enable bit
+        outMsg.buf[5] = ENABLED;
+        // Ignore torque limit
+        outMsg.buf[6] = 0;
+        outMsg.buf[7] = 0;
+        motorCAN.write(outMsg);
     }
-
-    if(torqueRequested >= BTO_ON_THRESHOLD && !BTOveride && brake.getBrakeActive()) {
-        BTOveride = true;
-        Serial.println("BTO Released");
+    else if (tractiveActive && !driveState)
+    {
+        // Stop the motor from spinning with a 0-torque command, which is identical to the "empty" enable command
+        Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
+        enableInverter();
     }
 }
 
-
-void ECU::calibrateThrottleMin() {
-
-    throttle.setCalibrationValueMin(throttle1, throttle2);
+void ECU::updateBTOverride(const int torque)
+{
+    Serial.print("[ECU] updateBTOverride torque="); Serial.println(torque);
+    if (BTOverride && !brake.getBrakeActive() && torque <= BTO_OFF_THRESHOLD)
+    {
+        Serial.println("[ECU]   clearing BTOverride");
+        BTOverride = false;
+    }
+    if (torque >= BTO_ON_THRESHOLD && !BTOverride && brake.getBrakeActive())
+    {
+        Serial.println("[ECU]   setting BTOverride");
+        BTOverride = true;
+    }
 }
 
-void ECU::calibrateThrottleMax() {
-
-    throttle.setCalibrationValueMax(throttle1, throttle2);
-}
-
-
-void ECU::throwError(int code) {
-    rmsg.id = ReservedIDs::FaultId; // DIAGNOSTIC ID
-
-    rmsg.len = 8;
-
-    rmsg.buf[0] = code;
-    rmsg.buf[1] = 0;
-    rmsg.buf[2] = 0;
-    rmsg.buf[3] = 0;
-    rmsg.buf[4] = 0;
-    rmsg.buf[5] = 0;
-    rmsg.buf[6] = 0;
-    rmsg.buf[7] = 0;
-    // Send the error code to the Dashboard
-    comsCAN.write(rmsg);
+/** Throw an error to the data CAN bus and shutdown */
+void ECU::throwError(const uint8_t code)
+{
+    Serial.print("[ECU] throwError code="); Serial.println(code);
+    outMsg.id = FaultId;
+    outMsg.len = 1;
+    outMsg.buf[0] = code;
+    dataCAN.write(outMsg);
+    shutdown(); // Shutdown to trigger a change to driveState
 }

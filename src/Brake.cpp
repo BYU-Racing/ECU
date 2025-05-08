@@ -63,6 +63,7 @@ bool Brake::checkError() {
         timeErrorStart = 0;
         return false;
     }
+    return false; // Not sure what this value should be
 }
 
 int Brake::getBrakeErrorState() {
