@@ -2,7 +2,7 @@
 
 
 
-constexpr int BRAKE_THRESHOLD = 250;
+constexpr int BRAKE_THRESHOLD = 200;
 constexpr int BL_PIN = 16; //PLACEHOLDER
 
 // Strong error handling should help? driving dynamics might be worse without it tho

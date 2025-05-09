@@ -389,6 +389,7 @@ void ECU::enableInverter()
     outMsg.buf[6] = 0;
     outMsg.buf[7] = 0;
     motorCAN.write(outMsg);
+    delay(10000);
 }
 
 void ECU::disableInverter()
