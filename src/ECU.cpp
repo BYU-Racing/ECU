@@ -26,7 +26,7 @@ void ECU::begin(const FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>& motorCAN,
     Serial.println("[ECU] begin() complete");
 }
 
-/** Send a health check can request to all DCs */
+/** Send a health check CAN request to all DCs */
 void ECU::sendHealthCheckRequest()
 {
     Serial.println("[ECU] sendHealthCheckRequest");
@@ -96,9 +96,10 @@ void ECU::startup()
 /** Initiate the shutdown sequence */
 void ECU::shutdown()
 {
-    driveState = false;
-    outMsg.id = DriveStateId;
-    outMsg.len = 1;
+    Serial.println("[ECU] shutdown()");
+    driveState  = false;
+    outMsg.id   = DriveStateId;
+    outMsg.len  = 1;
     outMsg.buf[0] = driveState;
     dataCAN.write(outMsg);
     disableInverter();
@@ -107,40 +108,54 @@ void ECU::shutdown()
 /** Main operation entrypoint for infinite looping */
 void ECU::run()
 {
-    Serial.print("[ECU] run() driveState=");
-    Serial.print(driveState);
-    Serial.print(" health=");
-    Serial.print((uint8_t)health);
-    Serial.print(" dt=");
-    Serial.println(millis() - lastHealthUpdate);
+    // Rate-limited serial prints
+    static uint32_t lastRunSerial = 0;
+    const uint32_t now = millis();
+    const uint32_t RUN_PRINT_INTERVAL = 200; // ms
+    bool doPrint = (now - lastRunSerial >= RUN_PRINT_INTERVAL);
+    if (doPrint) {
+        lastRunSerial = now;
+        Serial.print("[ECU] run() driveState=");
+        Serial.print(driveState);
+        Serial.print(" health=");
+        Serial.print((uint8_t)health);
+        Serial.print(" dt=");
+        Serial.println(now - lastHealthUpdate);
+    }
+
     if (!driveState)
     {
-        // TODO: Should this send a notice to the driver?
-        Serial.println("[ECU]   driveState false -> attemptStartup");
+        if (doPrint) Serial.println("[ECU]   driveState false -> attemptStartup");
         attemptStartup();
     }
-    // IMPORTANT: Reads must be separate to not
-    // skip the second call if the first returned true
+
+    // IMPORTANT: Reads must be separate to not skip the second call if the first returned true
     if (motorCAN.read(inMsg))
     {
-        Serial.print("[ECU]   motorCAN msg id=0x");
-        Serial.println(inMsg.id, HEX);
+        if (doPrint) {
+            Serial.print("[ECU]   motorCAN msg id=0x");
+            Serial.println(inMsg.id, HEX);
+        }
         routeMsg();
     }
     if (dataCAN.read(inMsg))
     {
-        Serial.print("[ECU]   dataCAN msg id=0x");
-        Serial.println(inMsg.id, HEX);
+        if (doPrint) {
+            Serial.print("[ECU]   dataCAN msg id=0x");
+            Serial.println(inMsg.id, HEX);
+        }
         routeMsg();
     }
-    if (millis() - lastHealthUpdate >= 3000)
+
+    if (now - lastHealthUpdate >= 3000)
     {
-        Serial.println("[ECU]   health stale -> updateHealth");
+        if (doPrint) Serial.println("[ECU]   health stale -> updateHealth");
         updateHealth();
     }
+
     if (health == CRITICAL || health == UNKNOWN)
     {
-        Serial.println("[ECU]   health fault -> shutdown");
+        if (doPrint) Serial.println("[ECU]   health fault -> shutdown");
         shutdown();
     }
 }
@@ -295,6 +310,7 @@ void ECU::updateStartSwitch()
     {
         // Turning off the switch shuts down the car
         Serial.println("[ECU]   switch off -> shutdown");
+        delay(10000);
         shutdown();
     }
 }
