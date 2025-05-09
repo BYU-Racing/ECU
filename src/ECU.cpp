@@ -3,14 +3,14 @@
 
 ECU::ECU()
 {
-    Serial.println("[ECU] Constructor");
+    // Serial.println("[ECU] Constructor");
     throttle = Throttle();
     brake = Brake();
 }
 
 ECU::~ECU()
 {
-    Serial.println("[ECU] Destructor: shutting down");
+    // Serial.println("[ECU] Destructor: shutting down");
     shutdown();
 }
 
@@ -23,13 +23,13 @@ void ECU::begin(const FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>& motorCAN,
     pinMode(BL_PIN, OUTPUT);
     pinMode(HORN_PIN, OUTPUT);
     updateHealth();
-    Serial.println("[ECU] begin() complete");
+    // Serial.println("[ECU] begin() complete");
 }
 
 /** Send a health check CAN request to all DCs */
 void ECU::sendHealthCheckRequest()
 {
-    Serial.println("[ECU] sendHealthCheckRequest");
+    // Serial.println("[ECU] sendHealthCheckRequest");
     outMsg.id = HealthCheckId;
     outMsg.len = 0;
     dataCAN.write(outMsg);
@@ -38,18 +38,18 @@ void ECU::sendHealthCheckRequest()
 /** Send and await health check from all DCs and update internal health */
 void ECU::updateHealth()
 {
-    Serial.println("[ECU] updateHealth()");
+    // Serial.println("[ECU] updateHealth()");
     sendHealthCheckRequest();
     Health worstHealth = HEALTHY; // Assume all sensors are healthy
     const uint32_t timer = millis();
-    Serial.print("[ECU]   waiting responses until ");
-    Serial.println(timer + 150);
+    // Serial.print("[ECU]   waiting responses until ");
+    // Serial.println(timer + 150);
     while (millis() - timer <= 150) // Wait 150 ms for responses
     {
         if (dataCAN.read(inMsg))
         {
-            Serial.print("[ECU]   got CAN id=0x");
-            Serial.println(inMsg.id, HEX);
+            // Serial.print("[ECU]   got CAN id=0x");
+            // Serial.println(inMsg.id, HEX);
             switch (inMsg.id)
             {
             case DCFId:
@@ -60,8 +60,8 @@ void ECU::updateHealth()
                     Health h = static_cast<Health>(inMsg.buf[i]);
                     if (h < worstHealth)
                     {
-                        Serial.print("[ECU]     new worstHealth=");
-                        Serial.println((uint8_t)h);
+                        // Serial.print("[ECU]     new worstHealth=");
+                        // Serial.println((uint8_t)h);
                         worstHealth = h;
                     }
                 }
@@ -73,14 +73,14 @@ void ECU::updateHealth()
     }
     health = worstHealth;
     lastHealthUpdate = timer;
-    Serial.print("[ECU]   final health=");
-    Serial.println((uint8_t)health);
+    // Serial.print("[ECU]   final health=");
+    // Serial.println((uint8_t)health);
 }
 
 /** Initiate the startup sequence, if all conditions are met */
 void ECU::startup()
 {
-    Serial.println("[ECU] startup()");
+    // Serial.println("[ECU] startup()");
     digitalWrite(HORN_PIN, HIGH);
     delay(2000); // Delay for 2 seconds per rules
     digitalWrite(HORN_PIN, LOW);
@@ -96,8 +96,8 @@ void ECU::startup()
 /** Initiate the shutdown sequence */
 void ECU::shutdown()
 {
-    Serial.println("[ECU] shutdown()");
-    driveState  = false;
+    // Serial.println("[ECU] shutdown()");
+    driveState = false;
     outMsg.id   = DriveStateId;
     outMsg.len  = 1;
     outMsg.buf[0] = driveState;
@@ -111,7 +111,7 @@ void ECU::run()
     // Rate-limited serial prints
     static uint32_t lastRunSerial = 0;
     const uint32_t now = millis();
-    const uint32_t RUN_PRINT_INTERVAL = 200; // ms
+    const uint32_t RUN_PRINT_INTERVAL = 250; // ms
     bool doPrint = (now - lastRunSerial >= RUN_PRINT_INTERVAL);
     if (doPrint) {
         lastRunSerial = now;
@@ -162,38 +162,47 @@ void ECU::run()
 
 void ECU::attemptStartup()
 {
-    Serial.print("[ECU] attemptStartup: lockout=");
-    Serial.print((uint8_t)inverterLockout);
-    Serial.print(" brake=");
-    Serial.print(brake.getBrakeActive());
-    Serial.print(" startFault=");
-    Serial.print(startFault);
-    Serial.print(" tractiveActive=");
-    Serial.print(tractiveActive);
-    Serial.print(" startSwitch=");
-    Serial.println(startSwitch);
+    // Rate-limited serial prints
+    static uint32_t lastAttemptStartSerial = 0;
+    const uint32_t now = millis();
+    const uint32_t ATTEMPT_STARTUP_PRINT_INTERVAL = 250; // ms
+    bool doPrint = (now - lastAttemptStartSerial >= ATTEMPT_STARTUP_PRINT_INTERVAL);
+    if (doPrint)
+    {
+        lastAttemptStartSerial = now;
+        Serial.print("[ECU] attemptStartup: lockout=");
+        Serial.print((uint8_t)inverterLockout);
+        Serial.print(" brake=");
+        Serial.print(brake.getBrakeActive());
+        Serial.print(" startFault=");
+        Serial.print(startFault);
+        Serial.print(" tractiveActive=");
+        Serial.print(tractiveActive);
+        Serial.print(" startSwitch=");
+        Serial.println(startSwitch);
+    }
     if (inverterLockout == LOCKED)
     {
         // Inverter is locked because of a fault, try unlocking
-        Serial.println("[ECU]   inverter locked -> disableInverter");
+        if (doPrint) Serial.println("[ECU]   inverter locked -> disableInverter");
         disableInverter();
     }
     else if (brake.getBrakeActive() && !startFault && tractiveActive && startSwitch)
     {
         // All start conditions are met - begin startup sequence
-        Serial.println("[ECU]   conditions met -> startup");
+        if (doPrint) Serial.println("[ECU]   conditions met -> startup");
         startup();
     }
     else if (prevStartSwitch && !startSwitch && startFault)
     {
         // We were in start fault but turned the switch off
-        Serial.println("[ECU]   clearing startFault");
+        if (doPrint) Serial.println("[ECU]   clearing startFault");
         startFault = false;
     }
     else if (startSwitch && !prevStartSwitch)
     {
         // We did not meet conditions but turned the switch on
-        Serial.println("[ECU]   bad startSwitch -> throwError");
+        if (doPrint) Serial.println("[ECU]   bad startSwitch -> throwError");
         startFault = true;
         throwError(StartFaultId);
     }
@@ -202,8 +211,8 @@ void ECU::attemptStartup()
 /** Routes the inMsg (by id) to the appropriate update function */
 void ECU::routeMsg()
 {
-    Serial.print("[ECU] routeMsg id=0x");
-    Serial.println(inMsg.id, HEX);
+    // Serial.print("[ECU] routeMsg id=0x");
+    // Serial.println(inMsg.id, HEX);
     switch (inMsg.id)
     {
     case Throttle1PositionId:
@@ -229,36 +238,37 @@ void ECU::routeMsg()
         updateInverter();
         break;
     default:
-        Serial.println("[ECU]   unknown CAN id");
+        // Serial.println("[ECU]   unknown CAN id");
         break;
     }
 }
 
 void ECU::updateThrottle()
 {
-    Serial.println("[ECU] updateThrottle");
+    // Serial.println("[ECU] updateThrottle");
     unpacker.reset(inMsg.buf);
     if (inMsg.id == Throttle1PositionId)
     {
         int32_t val = unpacker.unpack<int32_t>();
         throttle.setThrottle1(val);
-        Serial.print("[ECU]   throttle1="); Serial.println(val);
+        // Serial.print("[ECU]   throttle1="); Serial.println(val);
         updatedThrottle1 = true;
     }
     else
     {
         int32_t val = unpacker.unpack<int32_t>();
         throttle.setThrottle2(val);
-        Serial.print("[ECU]   throttle2="); Serial.println(val);
+        // Serial.print("[ECU]   throttle2="); Serial.println(val);
         updatedThrottle2 = true;
     }
     if (!updatedThrottle1 || !updatedThrottle2)
+    {
         return;
+    }
 
     int code = throttle.checkError();
     if (code != 0)
     {
-        Serial.print("[ECU]   throttle error code="); Serial.println(code);
         throwError(code);
         return;
     }
@@ -270,54 +280,52 @@ void ECU::updateThrottle()
 
 void ECU::calibrateThrottleMin()
 {
-    Serial.println("[ECU] calibrateThrottleMin");
+    // Serial.println("[ECU] calibrateThrottleMin");
     unpacker.reset(inMsg.buf);
     int32_t val = unpacker.unpack<int32_t>();
-    Serial.print("[ECU]   min="); Serial.println(val);
+    // Serial.print("[ECU]   min="); Serial.println(val);
     throttle.setCalibrationValueMin(val, val);
 }
 
 void ECU::calibrateThrottleMax()
 {
-    Serial.println("[ECU] calibrateThrottleMax");
+    // Serial.println("[ECU] calibrateThrottleMax");
     unpacker.reset(inMsg.buf);
     int32_t val = unpacker.unpack<int32_t>();
-    Serial.print("[ECU]   max="); Serial.println(val);
+    // Serial.print("[ECU]   max="); Serial.println(val);
     throttle.setCalibrationValueMin(val, val);
 }
 
 void ECU::updateBrake()
 {
-    Serial.println("[ECU] updateBrake");
+    // Serial.println("[ECU] updateBrake");
     unpacker.reset(inMsg.buf);
     int32_t val = unpacker.unpack<int32_t>();
-    Serial.print("[ECU]   brakePressure="); Serial.println(val);
+    // Serial.print("[ECU]   brakePressure="); Serial.println(val);
     brake.updateValue(val);
     if (brake.getBrakeErrorState() == 2)
     {
-        Serial.println("[ECU]   brake zero error");
+        // Serial.println("[ECU]   brake zero error");
         throwError(BrakeZeroId);
     }
 }
 
 void ECU::updateStartSwitch()
 {
-    Serial.println("[ECU] updateStartSwitch");
+    // Serial.println("[ECU] updateStartSwitch");
     prevStartSwitch = startSwitch;
     startSwitch = (inMsg.buf[0] == 1);
-    Serial.print("[ECU]   startSwitch="); Serial.println(startSwitch);
+    // Serial.print("[ECU]   startSwitch="); Serial.println(startSwitch);
     if (!startSwitch && driveState)
     {
         // Turning off the switch shuts down the car
         Serial.println("[ECU]   switch off -> shutdown");
-        delay(10000);
         shutdown();
     }
 }
 
 void ECU::updateDriveMode()
 {
-#define MAX_SPEED_ADDRESS 128
     Serial.println("[ECU] updateDriveMode");
     uint8_t req = inMsg.buf[0];
     Serial.print("[ECU]   req="); Serial.print(req);
@@ -325,7 +333,7 @@ void ECU::updateDriveMode()
     auto sendParam = [&]() {
         outMsg.id = ParameterCommandId;
         outMsg.len = 8;
-        outMsg.buf[0] = MAX_SPEED_ADDRESS;
+        outMsg.buf[0] = 128; // MAX_SPEED_ADDRESS
         outMsg.buf[1] = 0;
         outMsg.buf[2] = 1; // Write
         outMsg.buf[3] = 0; // Unused
@@ -368,9 +376,18 @@ void ECU::updateInverter()
     // Cascadia Motion CM200DX Software docs:
     // https://www.cascadiamotion.com/uploads/5/1/3/0/51309945/0a-0163-02_sw_user_manual.pdf
     // Page 144-147 for msg id 0x0AA
-    Serial.print("[ECU] updateInverter raw buf: ");
-    for (uint8_t i = 0; i < inMsg.len; i++) { Serial.print(inMsg.buf[i], HEX); Serial.print(' '); }
-    Serial.println();
+    // Rate-limited serial prints
+    static uint32_t lastUpdateInverterSerial = 0;
+    const uint32_t now = millis();
+    const uint32_t UPDATE_INVERTER_PRINT_INVERVAL = 250; // ms
+    bool doPrint = (now - lastUpdateInverterSerial >= UPDATE_INVERTER_PRINT_INVERVAL);
+    if (doPrint)
+    {
+        lastUpdateInverterSerial = now;
+        Serial.print("[ECU] updateInverter raw buf: ");
+        for (uint8_t i = 0; i < inMsg.len; i++) { Serial.print(inMsg.buf[i], HEX); Serial.print(' '); }
+        Serial.println();
+    }
     unpacker.reset(inMsg.buf);
     vsmState = unpacker.unpack<VSMState>();
     unpacker.skip<uint16_t>();
@@ -405,39 +422,47 @@ void ECU::enableInverter()
     outMsg.buf[6] = 0;
     outMsg.buf[7] = 0;
     motorCAN.write(outMsg);
-    delay(10000);
+    delay(5000);
 }
 
 void ECU::disableInverter()
 {
-    Serial.println("[ECU] disableInverter");
-    outMsg.id = ControlCommandId;
-    outMsg.len = 8;
-    // Ignore torque
-    outMsg.buf[0] = 0;
-    outMsg.buf[1] = 0;
-    // Ignore speed
-    outMsg.buf[2] = 0;
-    outMsg.buf[3] = 0;
-    // Command forward
-    outMsg.buf[4] = FORWARD;
-    // Set enable bit to disable
-    outMsg.buf[5] = DISABLED;
-    // Ignore torque limit
-    outMsg.buf[6] = 0;
-    outMsg.buf[7] = 0;
-    motorCAN.write(outMsg);
+    // Serial.println("[ECU] disableInverter");
+    // outMsg.id = ControlCommandId;
+    // outMsg.len = 8;
+    // // Ignore torque
+    // outMsg.buf[0] = 0;
+    // outMsg.buf[1] = 0;
+    // // Ignore speed
+    // outMsg.buf[2] = 0;
+    // outMsg.buf[3] = 0;
+    // // Command forward
+    // outMsg.buf[4] = FORWARD;
+    // // Set enable bit to disable
+    // outMsg.buf[5] = DISABLED;
+    // // Ignore torque limit
+    // outMsg.buf[6] = 0;
+    // outMsg.buf[7] = 0;
+    // motorCAN.write(outMsg);
 }
 
 void ECU::motorCommand(const int torque)
 {
-    Serial.print("[ECU] motorCommand torque="); Serial.println(torque);
-    Serial.print("[ECU]   tractiveActive="); Serial.print(tractiveActive);
-    Serial.print(" invEnabled="); Serial.print(inverterEnabled);
-    Serial.print(" driveState="); Serial.println(driveState);
+    // Rate-limited serial prints
+    static uint32_t lastMotorCommandSerial = 0;
+    const uint32_t now = millis();
+    const uint32_t MOTOR_COMMAND_PRINT_INTERVAL = 250; // ms
+    bool doPrint = (now - lastMotorCommandSerial >= MOTOR_COMMAND_PRINT_INTERVAL);
+    if (doPrint)
+    {
+        Serial.print("[ECU] motorCommand torque="); Serial.println(torque);
+        Serial.print("[ECU]   tractiveActive="); Serial.print(tractiveActive);
+        Serial.print(" invEnabled="); Serial.print(inverterEnabled);
+        Serial.print(" driveState="); Serial.println(driveState);
+    }
     if (tractiveActive && !inverterEnabled)
     {
-        Serial.println("[ECU]   -> enableInverter");
+        if (doPrint) Serial.println("[ECU]   -> enableInverter");
         enableInverter();
     }
     if (driveState)
@@ -446,7 +471,7 @@ void ECU::motorCommand(const int torque)
     }
     if (tractiveActive && driveState && !BTOverride)
     {
-        Serial.println("[ECU]   -> send torque cmd");
+        if (doPrint) Serial.println("[ECU]   -> send torque cmd");
         outMsg.id = ControlCommandId;
         outMsg.len = 8;
         // Specify torque
@@ -463,11 +488,12 @@ void ECU::motorCommand(const int torque)
         outMsg.buf[6] = 0;
         outMsg.buf[7] = 0;
         motorCAN.write(outMsg);
+        // delay(2000);
     }
     else if (tractiveActive && !driveState)
     {
         // Stop the motor from spinning with a 0-torque command, which is identical to the "empty" enable command
-        Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
+        if (doPrint) Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
         enableInverter();
     }
 }
@@ -490,10 +516,19 @@ void ECU::updateBTOverride(const int torque)
 /** Throw an error to the data CAN bus and shutdown */
 void ECU::throwError(const uint8_t code)
 {
-    Serial.print("[ECU] throwError code="); Serial.println(code);
+    // Rate-limited serial prints
+    static uint32_t lastThrowErrorSerial = 0;
+    const uint32_t now = millis();
+    const uint32_t THROW_ERROR_PRINT_INTERVAL = 250; // ms
+    bool doPrint = (now - lastThrowErrorSerial >= THROW_ERROR_PRINT_INTERVAL);
+    if (doPrint)
+    {
+        // Serial.print("[ECU] throwError code=");
+        // Serial.println(code);
+    }
     outMsg.id = FaultId;
     outMsg.len = 1;
     outMsg.buf[0] = code;
     dataCAN.write(outMsg);
-    shutdown(); // Shutdown to trigger a change to driveState
+    // shutdown(); // Shutdown to trigger a change to driveState
 }

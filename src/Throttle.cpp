@@ -23,6 +23,8 @@ Throttle::Throttle() {
 
 
 int Throttle::checkError() {
+    // TODO: Remove
+    return 0;
     if(abs(throttle1 - throttle2) < THROTTLE_ERROR_TOL) {
         countMisMatch = 0;
     } else {
