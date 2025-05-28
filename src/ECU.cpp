@@ -398,7 +398,7 @@ void ECU::updateInverter()
     const uint8_t Enabled = unpacker.unpack<uint8_t>();
     inverterEnabled = Enabled & 0b1;
     inverterLockout = static_cast<INV_Lockout>(Enabled & 0b10);
-    tractiveActive = vsmState == WAIT && prechargeRelay && mainRelay && inverterLockout == UNLOCKED;
+    tractiveActive = (vsmState == WAIT || vsmState == READY || vsmState == MOTOR_RUNNING) && prechargeRelay && mainRelay && inverterLockout == UNLOCKED; // Determination if tractive is active and therefore if torque commands should be sent to the inverter
 }
 
 /** Sends the command to enable the inverter. A check for tractiveActive is assumed to have been done before calling */
@@ -469,7 +469,7 @@ void ECU::motorCommand(const int torque)
     {
         updateBTOverride(torque);
     }
-    if (tractiveActive && driveState && !BTOverride)
+    if (tractiveActive && driveState && !BTOverride) // 
     {
         if (doPrint) Serial.println("[ECU]   -> send torque cmd");
         outMsg.id = ControlCommandId;
