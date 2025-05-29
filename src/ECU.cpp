@@ -156,7 +156,7 @@ void ECU::run()
     if (health == CRITICAL || health == UNKNOWN)
     {
         if (doPrint) Serial.println("[ECU]   health fault -> shutdown");
-        shutdown();
+        // shutdown(); // Health is not being considered a fault right now
     }
 }
 
@@ -186,8 +186,9 @@ void ECU::attemptStartup()
         // Inverter is locked because of a fault, try unlocking
         if (doPrint) Serial.println("[ECU]   inverter locked -> disableInverter");
         disableInverter();
+        enableInverter();
     }
-    else if (brake.getBrakeActive() && !startFault && tractiveActive && startSwitch)
+    else if (brake.getBrakeActive() && !startFault && startSwitch)
     {
         // All start conditions are met - begin startup sequence
         if (doPrint) Serial.println("[ECU]   conditions met -> startup");
@@ -469,7 +470,7 @@ void ECU::motorCommand(const int torque)
     {
         updateBTOverride(torque);
     }
-    if (tractiveActive && driveState && !BTOverride) // 
+    if (tractiveActive && driveState && !BTOverride) 
     {
         if (doPrint) Serial.println("[ECU]   -> send torque cmd");
         outMsg.id = ControlCommandId;
