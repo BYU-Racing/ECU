@@ -186,7 +186,6 @@ void ECU::attemptStartup()
         // Inverter is locked because of a fault, try unlocking
         if (doPrint) Serial.println("[ECU]   inverter locked -> disableInverter");
         disableInverter();
-        enableInverter();
     }
     else if (brake.getBrakeActive() && !startFault && startSwitch)
     {
@@ -470,7 +469,7 @@ void ECU::motorCommand(const int torque)
     {
         updateBTOverride(torque);
     }
-    if (tractiveActive && driveState && !BTOverride) 
+    if (tractiveActive && driveState && !BTOverride) // 
     {
         if (doPrint) Serial.println("[ECU]   -> send torque cmd");
         outMsg.id = ControlCommandId;
