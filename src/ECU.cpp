@@ -187,7 +187,8 @@ void ECU::attemptStartup()
         if (doPrint) Serial.println("[ECU]   inverter locked -> disableInverter");
         disableInverter();
     }
-    else if (brake.getBrakeActive() && !startFault && startSwitch)
+    else if (!startFault && startSwitch) // Used while brake is not pressurized
+    // else if (brake.getBrakeActive() && !startFault && startSwitch) // Commented out when brake is not pressurized
     {
         // All start conditions are met - begin startup sequence
         if (doPrint) Serial.println("[ECU]   conditions met -> startup");
@@ -500,17 +501,21 @@ void ECU::motorCommand(const int torque)
 
 void ECU::updateBTOverride(const int torque)
 {
-    Serial.print("[ECU] updateBTOverride torque="); Serial.println(torque);
-    if (BTOverride && !brake.getBrakeActive() && torque <= BTO_OFF_THRESHOLD)
-    {
-        Serial.println("[ECU]   clearing BTOverride");
-        BTOverride = false;
-    }
-    if (torque >= BTO_ON_THRESHOLD && !BTOverride && brake.getBrakeActive())
-    {
-        Serial.println("[ECU]   setting BTOverride");
-        BTOverride = true;
-    }
+    // Commented out while brake is not pressurized
+    BTOverride = false; // Remove when brake line is fixed
+
+
+    // Serial.print("[ECU] updateBTOverride torque="); Serial.println(torque);
+    // if (BTOverride && !brake.getBrakeActive() && torque <= BTO_OFF_THRESHOLD)
+    // {
+    //     Serial.println("[ECU]   clearing BTOverride");
+    //     BTOverride = false;
+    // }
+    // if (torque >= BTO_ON_THRESHOLD && !BTOverride && brake.getBrakeActive())
+    // {
+    //     Serial.println("[ECU]   setting BTOverride");
+    //     BTOverride = true;
+    // }
 }
 
 /** Throw an error to the data CAN bus and shutdown */
