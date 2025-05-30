@@ -343,7 +343,7 @@ void ECU::updateDriveMode()
         outMsg.buf[5] = 255;
         outMsg.buf[6] = 0; // Unused
         outMsg.buf[7] = 0; // Unused
-        motorCAN.write(outMsg);
+        // motorCAN.write(outMsg);
     };
     if (req == FULL_BEANS && driveMode != FULL_BEANS)
     {
@@ -404,6 +404,9 @@ void ECU::updateInverter()
     unpacker.skip<uint16_t>();
     const uint8_t Enabled = unpacker.unpack<uint8_t>();
     inverterEnabled = Enabled & 0b1;
+
+    Serial.print("INVERTER ENABLE: ");
+    Serial.println(inverterEnabled);
     inverterLockout = static_cast<INV_Lockout>(Enabled & 0b10);
     tractiveActive = (vsmState == WAIT || vsmState == READY || vsmState == MOTOR_RUNNING) && prechargeRelay && mainRelay && inverterLockout == UNLOCKED; // Determination if tractive is active and therefore if torque commands should be sent to the inverter
     // if (doPrint) Serial.print("[ECU] updateInverter inverterEnabled: ");
@@ -434,7 +437,7 @@ void ECU::enableInverter()
     // Ignore torque limit
     outMsg.buf[6] = 0;
     outMsg.buf[7] = 0;
-    motorCAN.write(outMsg);
+    // motorCAN.write(outMsg);
 }
 
 void ECU::disableInverter()
@@ -474,15 +477,15 @@ void ECU::motorCommand(const int torque)
         // Serial.print(" invEnabled="); Serial.print(inverterEnabled);
         // Serial.print(" driveState="); Serial.println(driveState);
     }
-    if (driveState)
-    {
-        if (tractiveActive && !inverterEnabled)
-        {
-            Serial.println("[ECU]   -> enableInverter since motor command is going to be sent");
-            enableInverter();
-        }
-        updateBTOverride(torque);
-    }
+    // if (driveState)
+    // {
+    //     if (tractiveActive && !inverterEnabled)
+    //     {
+    //         Serial.println("[ECU]   -> enableInverter since motor command is going to be sent");
+    //         enableInverter();
+    //     }
+    //     updateBTOverride(torque);
+    // }
     if (tractiveActive && driveState && !BTOverride) // 
     {
         // if (doPrint) Serial.println("[ECU]   -> send torque cmd");
