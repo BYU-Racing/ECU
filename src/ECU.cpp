@@ -300,10 +300,20 @@ void ECU::sendMotorCommand(int torque) {
     // Serial.println(driveState);
 
 
-    if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
-        // Serial.print("COMMANDED: ");
-        // Serial.println(torque);
+    if(!startSwitchState) {
         motorCommand.id = ReservedIDs::ControlCommandId;
+        motorCommand.buf[0] = 0;
+        motorCommand.buf[1] = 0;
+        motorCommand.buf[2] = 0;
+        motorCommand.buf[3] = 0;
+        motorCommand.buf[4] = 0;
+        motorCommand.buf[5] = 0; //RE AFFIRMS THE INVERTER IS ACTIVE
+        motorCommand.buf[6] = 0;
+        motorCommand.buf[7] = 0;
+        motorCAN.write(motorCommand);
+    }
+    else if(startSwitchState) {
+                motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = torque % 256;
         motorCommand.buf[1] = torque / 256;
         motorCommand.buf[2] = 0;
