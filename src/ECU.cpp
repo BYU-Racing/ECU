@@ -286,15 +286,28 @@ void ECU::sendMotorStopCommand() {
 
 void ECU::sendMotorCommand(int torque) {
     //Send the command to the motor
-    if(!motorState && brakeOK && throttleOK && slipOK && driveState) { //If the motor has been commanded off but should be on
-        motorState = true;
-        //TODO: Determine if this needs to re start the inverter (it do not)
-    }
-    if(driveState) {
-        checkBTOverride();
-    }
+    // if(!motorState && throttleOK && slipOK && driveState) { //If the motor has been commanded off but should be on
+    //     motorState = true;
+    //     //TODO: Determine if this needs to re start the inverter (it do not)
+    // }
+    // if(driveState) {
+    //     checkBTOverride();
+    // }
 
-    if(motorState && brakeOK && throttleOK && !BTOveride && driveState) {
+
+    if(startSwitchState == false) {
+        motorCommand.id = ReservedIDs::ControlCommandId;
+        motorCommand.buf[0] = 0;
+        motorCommand.buf[1] = 0;
+        motorCommand.buf[2] = 0;
+        motorCommand.buf[3] = 0;
+        motorCommand.buf[4] = 0;
+        motorCommand.buf[5] = 0; //RE AFFIRMS THE INVERTER IS ACTIVE
+        motorCommand.buf[6] = 0;
+        motorCommand.buf[7] = 0;
+        motorCAN.write(motorCommand);
+    }
+    else if(startSwitchState) {
         Serial.println(torqueCommanded);
         motorCommand.id = ReservedIDs::ControlCommandId;
         motorCommand.buf[0] = torque % 256;
