@@ -391,15 +391,27 @@ void ECU::updateInverter()
     }
     unpacker.reset(inMsg.buf);
     vsmState = unpacker.unpack<VSMState>();
+    if (doPrint) Serial.print("[ECU] updateInverter vsmState");
+    if (doPrint) Serial.println(vsmState);
     unpacker.skip<uint16_t>();
     const uint8_t Relays = unpacker.unpack<uint8_t>();
     prechargeRelay = Relays & 0b1;
     mainRelay = Relays & 0b10;
+    if (doPrint) Serial.print("[ECU] updateInverter prechargeRelay: ");
+    if (doPrint) Serial.println(prechargeRelay);
+    if (doPrint) Serial.print("[ECU] updateInverter mainRelay: ");
+    if (doPrint) Serial.println(mainRelay);
     unpacker.skip<uint16_t>();
     const uint8_t Enabled = unpacker.unpack<uint8_t>();
     inverterEnabled = Enabled & 0b1;
     inverterLockout = static_cast<INV_Lockout>(Enabled & 0b10);
     tractiveActive = (vsmState == WAIT || vsmState == READY || vsmState == MOTOR_RUNNING) && prechargeRelay && mainRelay && inverterLockout == UNLOCKED; // Determination if tractive is active and therefore if torque commands should be sent to the inverter
+    if (doPrint) Serial.print("[ECU] updateInverter inverterEnabled: ");
+    if (doPrint) Serial.println(inverterEnabled);
+    if (doPrint) Serial.print("[ECU] updateInverter inverterLockout: ");
+    if (doPrint) Serial.println(inverterLockout);
+    if (doPrint) Serial.print("[ECU] updateInverter tractiveActive: ");
+    if (doPrint) Serial.println(tractiveActive);
 }
 
 /** Sends the command to enable the inverter. A check for tractiveActive is assumed to have been done before calling */
@@ -423,7 +435,6 @@ void ECU::enableInverter()
     outMsg.buf[6] = 0;
     outMsg.buf[7] = 0;
     motorCAN.write(outMsg);
-    delay(5000);
 }
 
 void ECU::disableInverter()
@@ -461,13 +472,13 @@ void ECU::motorCommand(const int torque)
         Serial.print(" invEnabled="); Serial.print(inverterEnabled);
         Serial.print(" driveState="); Serial.println(driveState);
     }
-    if (tractiveActive && !inverterEnabled)
-    {
-        if (doPrint) Serial.println("[ECU]   -> enableInverter");
-        enableInverter();
-    }
     if (driveState)
     {
+        if (tractiveActive && !inverterEnabled)
+        {
+            if (doPrint) Serial.println("[ECU]   -> enableInverter since motor command is going to be sent");
+            enableInverter();
+        }
         updateBTOverride(torque);
     }
     if (tractiveActive && driveState && !BTOverride) // 
@@ -489,6 +500,8 @@ void ECU::motorCommand(const int torque)
         outMsg.buf[6] = 0;
         outMsg.buf[7] = 0;
         motorCAN.write(outMsg);
+        Serial.print("[ECU] torque command enable: ");
+        Serial.println(outMsg.buf[5]);
         // delay(2000);
     }
     else if (tractiveActive && !driveState)
