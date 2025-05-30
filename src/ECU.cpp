@@ -458,7 +458,7 @@ void ECU::disableInverter()
     // Ignore torque limit
     outMsg.buf[6] = 0;
     outMsg.buf[7] = 0;
-    motorCAN.write(outMsg);
+    //motorCAN.write(outMsg);
 
     Serial.print("Attempt unlock / disable");
 }
