@@ -96,13 +96,13 @@ void ECU::startup()
 /** Initiate the shutdown sequence */
 void ECU::shutdown()
 {
-    // Serial.println("[ECU] shutdown()");
-    driveState = false;
-    outMsg.id   = DriveStateId;
-    outMsg.len  = 1;
-    outMsg.buf[0] = driveState;
-    dataCAN.write(outMsg);
-    disableInverter();
+    // // Serial.println("[ECU] shutdown()");
+    // driveState = false;
+    // outMsg.id   = DriveStateId;
+    // outMsg.len  = 1;
+    // outMsg.buf[0] = driveState;
+    // dataCAN.write(outMsg);
+    // disableInverter();
 }
 
 /** Main operation entrypoint for infinite looping */
@@ -112,7 +112,7 @@ void ECU::run()
     static uint32_t lastRunSerial = 0;
     const uint32_t now = millis();
     const uint32_t RUN_PRINT_INTERVAL = 250; // ms
-    bool doPrint = (now - lastRunSerial >= RUN_PRINT_INTERVAL);
+    bool doPrint = false;
     if (doPrint) {
         lastRunSerial = now;
         Serial.print("[ECU] run() driveState=");
@@ -166,7 +166,7 @@ void ECU::attemptStartup()
     static uint32_t lastAttemptStartSerial = 0;
     const uint32_t now = millis();
     const uint32_t ATTEMPT_STARTUP_PRINT_INTERVAL = 250; // ms
-    bool doPrint = (now - lastAttemptStartSerial >= ATTEMPT_STARTUP_PRINT_INTERVAL);
+    bool doPrint = false;
     if (doPrint)
     {
         lastAttemptStartSerial = now;
@@ -275,7 +275,7 @@ void ECU::updateThrottle()
     }
     updatedThrottle1 = updatedThrottle2 = false;
     int torque = throttle.calculateTorque();
-    Serial.print("[ECU]   calculated torque="); Serial.println(torque);
+    // Serial.print("[ECU]   calculated torque="); Serial.println(torque);
     motorCommand(torque);
 }
 
@@ -381,7 +381,7 @@ void ECU::updateInverter()
     static uint32_t lastUpdateInverterSerial = 0;
     const uint32_t now = millis();
     const uint32_t UPDATE_INVERTER_PRINT_INVERVAL = 250; // ms
-    bool doPrint = (now - lastUpdateInverterSerial >= UPDATE_INVERTER_PRINT_INVERVAL);
+    bool doPrint = false;
     if (doPrint)
     {
         lastUpdateInverterSerial = now;
@@ -391,34 +391,34 @@ void ECU::updateInverter()
     }
     unpacker.reset(inMsg.buf);
     vsmState = unpacker.unpack<VSMState>();
-    if (doPrint) Serial.print("[ECU] updateInverter vsmState");
-    if (doPrint) Serial.println(vsmState);
+    // if (doPrint) Serial.print("[ECU] updateInverter vsmState");
+    // if (doPrint) Serial.println(vsmState);
     unpacker.skip<uint16_t>();
     const uint8_t Relays = unpacker.unpack<uint8_t>();
     prechargeRelay = Relays & 0b1;
     mainRelay = Relays & 0b10;
-    if (doPrint) Serial.print("[ECU] updateInverter prechargeRelay: ");
-    if (doPrint) Serial.println(prechargeRelay);
-    if (doPrint) Serial.print("[ECU] updateInverter mainRelay: ");
-    if (doPrint) Serial.println(mainRelay);
+    // if (doPrint) Serial.print("[ECU] updateInverter prechargeRelay: ");
+    // if (doPrint) Serial.println(prechargeRelay);
+    // if (doPrint) Serial.print("[ECU] updateInverter mainRelay: ");
+    // if (doPrint) Serial.println(mainRelay);
     unpacker.skip<uint16_t>();
     const uint8_t Enabled = unpacker.unpack<uint8_t>();
     inverterEnabled = Enabled & 0b1;
     inverterLockout = static_cast<INV_Lockout>(Enabled & 0b10);
     tractiveActive = (vsmState == WAIT || vsmState == READY || vsmState == MOTOR_RUNNING) && prechargeRelay && mainRelay && inverterLockout == UNLOCKED; // Determination if tractive is active and therefore if torque commands should be sent to the inverter
-    if (doPrint) Serial.print("[ECU] updateInverter inverterEnabled: ");
-    if (doPrint) Serial.println(inverterEnabled);
-    if (doPrint) Serial.print("[ECU] updateInverter inverterLockout: ");
-    if (doPrint) Serial.println(inverterLockout);
-    if (doPrint) Serial.print("[ECU] updateInverter tractiveActive: ");
-    if (doPrint) Serial.println(tractiveActive);
+    // if (doPrint) Serial.print("[ECU] updateInverter inverterEnabled: ");
+    // if (doPrint) Serial.println(inverterEnabled);
+    // if (doPrint) Serial.print("[ECU] updateInverter inverterLockout: ");
+    // if (doPrint) Serial.println(inverterLockout);
+    // if (doPrint) Serial.print("[ECU] updateInverter tractiveActive: ");
+    // if (doPrint) Serial.println(tractiveActive);
 }
 
 /** Sends the command to enable the inverter. A check for tractiveActive is assumed to have been done before calling */
 void ECU::enableInverter()
 {
     // Only enable the inverter when in VSM 4 and it has passed precharge
-    Serial.println("[ECU] enableInverter");
+    // Serial.println("[ECU] enableInverter");
     outMsg.id = ControlCommandId;
     outMsg.len = 8;
     // Ignore torque
@@ -464,13 +464,13 @@ void ECU::motorCommand(const int torque)
     static uint32_t lastMotorCommandSerial = 0;
     const uint32_t now = millis();
     const uint32_t MOTOR_COMMAND_PRINT_INTERVAL = 250; // ms
-    bool doPrint = (now - lastMotorCommandSerial >= MOTOR_COMMAND_PRINT_INTERVAL);
+    bool doPrint = false;
     if (doPrint)
     {
-        Serial.print("[ECU] motorCommand torque="); Serial.println(torque);
-        Serial.print("[ECU]   tractiveActive="); Serial.print(tractiveActive);
-        Serial.print(" invEnabled="); Serial.print(inverterEnabled);
-        Serial.print(" driveState="); Serial.println(driveState);
+        // Serial.print("[ECU] motorCommand torque="); Serial.println(torque);
+        // Serial.print("[ECU]   tractiveActive="); Serial.print(tractiveActive);
+        // Serial.print(" invEnabled="); Serial.print(inverterEnabled);
+        // Serial.print(" driveState="); Serial.println(driveState);
     }
     if (driveState)
     {
@@ -483,7 +483,7 @@ void ECU::motorCommand(const int torque)
     }
     if (tractiveActive && driveState && !BTOverride) // 
     {
-        if (doPrint) Serial.println("[ECU]   -> send torque cmd");
+        // if (doPrint) Serial.println("[ECU]   -> send torque cmd");
         outMsg.id = ControlCommandId;
         outMsg.len = 8;
         // Specify torque
@@ -500,14 +500,14 @@ void ECU::motorCommand(const int torque)
         outMsg.buf[6] = 0;
         outMsg.buf[7] = 0;
         motorCAN.write(outMsg);
-        Serial.print("[ECU] torque command enable: ");
-        Serial.println(outMsg.buf[5]);
+        // Serial.print("[ECU] torque command enable: ");
+        // Serial.println(outMsg.buf[5]);
         // delay(2000);
     }
     else if (tractiveActive && !driveState)
     {
         // Stop the motor from spinning with a 0-torque command, which is identical to the "empty" enable command
-        if (doPrint) Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
+        // if (doPrint) Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
         enableInverter();
     }
 }
@@ -538,7 +538,7 @@ void ECU::throwError(const uint8_t code)
     static uint32_t lastThrowErrorSerial = 0;
     const uint32_t now = millis();
     const uint32_t THROW_ERROR_PRINT_INTERVAL = 250; // ms
-    bool doPrint = (now - lastThrowErrorSerial >= THROW_ERROR_PRINT_INTERVAL);
+    bool doPrint = false;
     if (doPrint)
     {
         // Serial.print("[ECU] throwError code=");
