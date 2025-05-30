@@ -439,23 +439,25 @@ void ECU::enableInverter()
 
 void ECU::disableInverter()
 {
-    // Serial.println("[ECU] disableInverter");
-    // outMsg.id = ControlCommandId;
-    // outMsg.len = 8;
-    // // Ignore torque
-    // outMsg.buf[0] = 0;
-    // outMsg.buf[1] = 0;
-    // // Ignore speed
-    // outMsg.buf[2] = 0;
-    // outMsg.buf[3] = 0;
-    // // Command forward
-    // outMsg.buf[4] = FORWARD;
-    // // Set enable bit to disable
-    // outMsg.buf[5] = DISABLED;
-    // // Ignore torque limit
-    // outMsg.buf[6] = 0;
-    // outMsg.buf[7] = 0;
-    // motorCAN.write(outMsg);
+    Serial.println("[ECU] disableInverter");
+    outMsg.id = ControlCommandId;
+    outMsg.len = 8;
+    // Ignore torque
+    outMsg.buf[0] = 0;
+    outMsg.buf[1] = 0;
+    // Ignore speed
+    outMsg.buf[2] = 0;
+    outMsg.buf[3] = 0;
+    // Command forward
+    outMsg.buf[4] = FORWARD;
+    // Set enable bit to disable
+    outMsg.buf[5] = DISABLED;
+    // Ignore torque limit
+    outMsg.buf[6] = 0;
+    outMsg.buf[7] = 0;
+    motorCAN.write(outMsg);
+
+    Serial.print("Attempt unlock / disable");
 }
 
 void ECU::motorCommand(const int torque)
@@ -476,7 +478,7 @@ void ECU::motorCommand(const int torque)
     {
         if (tractiveActive && !inverterEnabled)
         {
-            if (doPrint) Serial.println("[ECU]   -> enableInverter since motor command is going to be sent");
+            Serial.println("[ECU]   -> enableInverter since motor command is going to be sent");
             enableInverter();
         }
         updateBTOverride(torque);
@@ -509,6 +511,7 @@ void ECU::motorCommand(const int torque)
         // Stop the motor from spinning with a 0-torque command, which is identical to the "empty" enable command
         // if (doPrint) Serial.println("[ECU]   -> drive off, still enableInverter for safe stop");
         enableInverter();
+        Serial.println("IF YOU SEE THIS WITH DRIVE STATE YOUR HOSED");
     }
 }
 
@@ -535,18 +538,18 @@ void ECU::updateBTOverride(const int torque)
 void ECU::throwError(const uint8_t code)
 {
     // Rate-limited serial prints
-    static uint32_t lastThrowErrorSerial = 0;
-    const uint32_t now = millis();
-    const uint32_t THROW_ERROR_PRINT_INTERVAL = 250; // ms
-    bool doPrint = false;
-    if (doPrint)
-    {
-        // Serial.print("[ECU] throwError code=");
-        // Serial.println(code);
-    }
-    outMsg.id = FaultId;
-    outMsg.len = 1;
-    outMsg.buf[0] = code;
-    dataCAN.write(outMsg);
+    // static uint32_t lastThrowErrorSerial = 0;
+    // const uint32_t now = millis();
+    // const uint32_t THROW_ERROR_PRINT_INTERVAL = 250; // ms
+    // bool doPrint = false;
+    // if (doPrint)
+    // {
+    //     // Serial.print("[ECU] throwError code=");
+    //     // Serial.println(code);
+    // }
+    // outMsg.id = FaultId;
+    // outMsg.len = 1;
+    // outMsg.buf[0] = code;
+    // dataCAN.write(outMsg);
     // shutdown(); // Shutdown to trigger a change to driveState
 }
