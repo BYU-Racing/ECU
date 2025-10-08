@@ -208,13 +208,11 @@ void ECU::updateThrottle() {
     sendMotorCommand(torqueRequested);
 }
 
-// TODO: Brake override patch
 void ECU::updateBrake() {
     unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
     brakeOK = (brake.getBrakeErrorState() != 2); 
 
-    // comment out to stop error handling with brake
     if(!brakeOK) {
         throwError(FaultSourcesIDs::BrakeZeroId);
     }
