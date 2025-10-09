@@ -8,7 +8,8 @@ constexpr int BTO_ON_THRESHOLD = 300;
 
 constexpr int INVERTER_PING_FREQUENCY = 100;
 
-
+// Brake override patch
+bool BTOveride = true;
 
 ECU::ECU() {
     throttle = Throttle();
@@ -208,16 +209,19 @@ void ECU::updateThrottle() {
     sendMotorCommand(torqueRequested);
 }
 
-
+// TODO brake error handling-need to test on car
+// Brake error handling
 void ECU::updateBrake() {
     unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
     brakeOK = (brake.getBrakeErrorState() != 2); 
 
-    // comment out to stop error handling with brake
-    // if(!brakeOK) {
-    //     throwError(FaultSourcesIDs::BrakeZeroId);
-    // }
+    // Brake Override patch
+    if(!BTOveride) {
+        if (!brakeOK){
+            throwError(FaultSourcesIDs::BrakeZeroId);
+        }
+    }
 }
 
 void ECU::updateSwitch() {
