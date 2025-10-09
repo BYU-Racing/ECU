@@ -209,18 +209,14 @@ void ECU::updateThrottle() {
     sendMotorCommand(torqueRequested);
 }
 
-// TODO brake error handling-need to test on car
-// Brake error handling
+
 void ECU::updateBrake() {
     unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
     brakeOK = (brake.getBrakeErrorState() != 2); 
 
-    // Brake Override patch
-    if(!BTOveride) {
-        if (!brakeOK){
-            throwError(FaultSourcesIDs::BrakeZeroId);
-        }
+    if(!brakeOK) {
+        throwError(FaultSourcesIDs::BrakeZeroId);
     }
 }
 
