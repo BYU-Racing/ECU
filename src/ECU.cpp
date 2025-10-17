@@ -2,7 +2,7 @@
 
 constexpr int HORN_PIN = 19; 
 constexpr int BL_PIN = 13; //PLACEHOLDER
-
+//
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
 
@@ -234,39 +234,34 @@ void ECU::updateSwitch() {
 }
 
 
-//TODO: This dont really work for max RPM, needs further investigation into MCU control
+//TODO: check that this function works for ECU mapping on the car 
 void ECU::updateDriveMode() {
-    if(rmsg.buf[0] == 0 && driveMode != 0) {
-        if(driveMode == 2) { //RESET MAX RPM
-            rmsg.id = 0x0C1;
-            rmsg.buf[0] = 128;
-            rmsg.buf[2] = 1; // 1 to write value
+    // to change the driveMode variable must be manually changed in ECU.h
+    if(rmsg.buf[0] == 0 && driveMode == 0) {
+        //RESET MAX RPM
+        rmsg.id = 0x0C1;
+        rmsg.buf[0] = 128;
+        rmsg.buf[2] = 1; // 1 to write value
 
-            rmsg.buf[4] = 255; // Write values for max RPM
-            rmsg.buf[5] = 255;
+        rmsg.buf[4] = 255; // Write values for max RPM
+        rmsg.buf[5] = 255;
 
-            motorCAN.write(rmsg);
-        }
-        driveMode = 0;
+        motorCAN.write(rmsg);
         throttle.setMaxTorque(3100);
     }
-    else if(rmsg.buf[0] == 1 && driveMode != 1) {
-        if(driveMode == 2) { //RESET MAX RPM
-            rmsg.id = 0x0C1;
-            rmsg.buf[0] = 128;
-            rmsg.buf[2] = 1; // 1 to write value
+    else if(rmsg.buf[0] == 1 && driveMode == 1) {
+        //RESET MAX RPM
+        rmsg.id = 0x0C1;
+        rmsg.buf[0] = 128;
+        rmsg.buf[2] = 1; // 1 to write value
 
-            rmsg.buf[4] = 255; // Write values for max RPM
-            rmsg.buf[5] = 255;
+        rmsg.buf[4] = 255; // Write values for max RPM
+        rmsg.buf[5] = 255;
 
-            motorCAN.write(rmsg);
-        }
-        driveMode = 1;
-        throttle.setMaxTorque(1500);
+        motorCAN.write(rmsg);
+        throttle.setMaxTorque(1550);
     }
-    else if(rmsg.buf[0] == 2 && driveMode != 2) {
-        //TODO: VERIFY THIS WORKING!!
-        driveMode = 2;
+    else if(rmsg.buf[0] == 2 && driveMode == 2) {
         // Call the rpm limiter to the motor
         rmsg.id = 0x0C1;
         rmsg.buf[0] = 128;
@@ -276,8 +271,7 @@ void ECU::updateDriveMode() {
         rmsg.buf[5] = 255;
 
         motorCAN.write(rmsg); 
-
-        throttle.setMaxTorque(3100);
+        throttle.setMaxTorque(620);
     }
 }
 
