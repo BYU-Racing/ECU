@@ -213,8 +213,9 @@ void ECU::updateThrottle() {
 void ECU::updateBrake() {
     unpacker.reset(rmsg.buf);
     brake.updateValue(unpacker.unpack<int32_t>());
-    brakeOK = (brake.getBrakeErrorState() != 2); 
+    brakeOK = (brake.getBrakeErrorState() != 2);
 
+    // brake override patch
     if (!BTOveride) {
         if (!brakeOK){
             throwError(FaultSourcesIDs::BrakeZeroId);

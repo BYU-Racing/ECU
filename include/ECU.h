@@ -25,6 +25,7 @@ class ECU {
 
         bool carIsGood = true;
 
+        // change drivemode!
         int driveMode = 0; //0 = Full beans, 1 = Endurance, 2 = SkidPad
 
         //MONITORING VARS
