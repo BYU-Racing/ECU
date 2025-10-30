@@ -2,7 +2,7 @@
 
 constexpr int HORN_PIN = 19; 
 constexpr int BL_PIN = 13; //PLACEHOLDER
-//
+
 constexpr int BTO_OFF_THRESHOLD = 120;
 constexpr int BTO_ON_THRESHOLD = 300;
 
@@ -29,6 +29,13 @@ void ECU::boot() {
     delay(150); //Makes sure ECU is last to be online so others can respond
     carIsGood = runDiagnostics();
     pinMode(BL_PIN, OUTPUT);
+    if (DEBUG) {
+        if(carIsGood) {
+            Serial.println("BOOT SUCCESSFUL");
+        } else {
+            Serial.println("BOOT FAULT DETECTED");
+        }
+    }
 }
 
 bool ECU::runDiagnostics() {
@@ -54,6 +61,10 @@ void ECU::askForDiagnostics() {
 
     // Write on the comsCAN
     comsCAN.write(rmsg);
+
+    if (DEBUG) {
+        Serial.println("Diagnostics Requested");
+    }
 }
 
 bool ECU::reportDiagnostics() {
@@ -61,6 +72,10 @@ bool ECU::reportDiagnostics() {
     timer = millis();
     while(millis() - timer <= 150) {
         if(comsCAN.read(rmsg)) {
+            if (DEBUG) {
+                Serial.print("Diagnostic Message Received with ID: ");
+                Serial.println(rmsg.id);
+            }
             if(rmsg.id == ReservedIDs::DCFId) {
                 data1Health = rmsg.buf[0];
             }
@@ -71,8 +86,12 @@ bool ECU::reportDiagnostics() {
                 data3Health = rmsg.buf[0];
             }
         }
+        if (DEBUG && millis() - timer > 150) {
+            Serial.println("Waiting for Diagnostic Messages...");
+        }
     }
 
+    Serial.println(data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
     return (data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
 }
 
@@ -290,7 +309,7 @@ void ECU::sendMotorStartCommand() {
 }
 
 void ECU::sendMotorStopCommand() {
-    //Serial.println("Motor stop command sent");
+    Serial.println("Motor stop command sent");
     motorState = false;
     return;
 }
@@ -369,9 +388,10 @@ void ECU::shutdown() {
 
 bool ECU::attemptStart() {
 
-    //DEBUG
-    carIsGood = true;
-    tractiveActive = true;
+    //TODO: For Debugging purposes only
+    // Debug
+    // carIsGood = true;
+    // tractiveActive = true;
 
     if(brake.getBrakeActive() && !startFault && tractiveActive && carIsGood) {
         if(startSwitchState) {

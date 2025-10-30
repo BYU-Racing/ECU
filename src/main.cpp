@@ -10,7 +10,15 @@ ECU mainECU;
 
 void setup() {
   Serial.begin(BEGIN);
+  if (mainECU.DEBUG) {
+    delay(3000); // wait for serial monitor to open
+  } else {
+    delay(1000); // wait for serial monitor to open
+  }
   Serial.println("Start");
+  if (mainECU.DEBUG) {
+      Serial.println("Debug Mode Active");
+  }
 
   // set up CAN
   can1.begin();
@@ -27,5 +35,25 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  mainECU.run();
-}
+  // DEBUG MODE
+  if (mainECU.DEBUG) {
+    if (mainECU.getCarIsGood()) {
+      static unsigned long lastPrint = 0;
+      if (millis() - lastPrint > 5000)
+      {
+        Serial.println("Main Loop Running...");
+        lastPrint = millis();
+      }
+      mainECU.run();
+    } else {
+      static unsigned long lastPrint = 0;
+      if (millis() - lastPrint > 5000)
+      {
+        mainECU.run(); // Still run to allow for diagnostics but at a slower rate to allow for debugging
+        lastPrint = millis();
+      }
+    }
+  } else {
+    mainECU.run(); // Default Mode
+  }
+} 
