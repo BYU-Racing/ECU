@@ -11,15 +11,13 @@ ECU mainECU;
 void setup() {
   Serial.begin(BEGIN);
   if (mainECU.DEBUG) {
-    delay(3000); // wait for serial monitor to open
-  } else {
-    delay(1000); // wait for serial monitor to open
+    while(!Serial); // Wait for serial to initialize
   }
   Serial.println("Start");
   if (mainECU.DEBUG) {
       Serial.println("Debug Mode Active");
   }
-
+  
   // set up CAN
   can1.begin();
   can1.setBaudRate(BAUDRATE);
@@ -30,30 +28,20 @@ void setup() {
   mainECU.setCAN(can2, can1);
   mainECU.boot();
   pinMode(19, OUTPUT);
-  
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   // DEBUG MODE
   if (mainECU.DEBUG) {
-    if (mainECU.getCarIsGood()) {
-      static unsigned long lastPrint = 0;
-      if (millis() - lastPrint > 5000)
-      {
-        Serial.println("Main Loop Running...");
-        lastPrint = millis();
-      }
-      mainECU.run();
-    } else {
-      static unsigned long lastPrint = 0;
-      if (millis() - lastPrint > 5000)
-      {
-        mainECU.run(); // Still run to allow for diagnostics but at a slower rate to allow for debugging
-        lastPrint = millis();
-      }
+    if (CAN_message_t rmsg; can1.read(rmsg)) {
+      can1.mailboxStatus();
+      can2.mailboxStatus();
     }
-  } else {
+    mainECU.run();
+  }
+  else {
     mainECU.run(); // Default Mode
   }
 } 

@@ -1,7 +1,5 @@
 #include "Brake.h"
 
-
-
 constexpr int BRAKE_THRESHOLD = 50;
 constexpr int BL_PIN = 13; //PLACEHOLDER
 

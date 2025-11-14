@@ -12,6 +12,9 @@ constexpr int THROTTLE_ERROR_TOL = 1600;
 constexpr int THROTTLE_MAINTAIN_TOL = 20;
 constexpr int THROTTLE_NOISE_REDUCTION_THRESHOLD = 60;
 
+// DEBUG MODE
+bool DEBUG = true;
+
 
 Throttle::Throttle() {
     magiMemory[0] = 0;
@@ -23,6 +26,13 @@ Throttle::Throttle() {
 
 
 int Throttle::checkError() {
+    if (DEBUG) {
+        Serial.println("Checking Throttle Error...");
+        Serial.print("Throttle1: ");
+        Serial.println(throttle1);
+        Serial.print("Throttle2: ");
+        Serial.println(throttle2);
+    }
     if(abs(throttle1 - throttle2) < THROTTLE_ERROR_TOL) {
         countMisMatch = 0;
     } else {
@@ -41,14 +51,19 @@ int Throttle::checkError() {
 }
 
 void Throttle::setThrottle1(int input) {
+    if (DEBUG) {
+        input = 900;
+    }
     readIn1 = input;
-
     Serial.print("T1: ");
     Serial.println(input);
     this->throttle1 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
 void Throttle::setThrottle2(int input) {
+    if (DEBUG){
+        input = 800;
+    }
     readIn2 = input;
     Serial.print("T2: ");
     Serial.println(input);

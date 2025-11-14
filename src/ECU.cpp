@@ -23,7 +23,7 @@ void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4
     motorCAN = motorCANin;
     
 }
-
+    
 //Initial Diagnostics
 void ECU::boot() {
     delay(150); //Makes sure ECU is last to be online so others can respond
@@ -85,13 +85,28 @@ bool ECU::reportDiagnostics() {
             if(rmsg.id == ReservedIDs::DCTId) {
                 data3Health = rmsg.buf[0];
             }
+        } else if (DEBUG == true) {
+            // Simulate receiving diagnostic messages for testing
+            rmsg.id = ReservedIDs::DCFId;
+            rmsg.buf[0] = 3; // Simulated health value
+            data1Health = rmsg.buf[0];
+
+            rmsg.id = ReservedIDs::DCRId;
+            rmsg.buf[0] = 3;
+            data2Health = rmsg.buf[0];
+
+            rmsg.id = ReservedIDs::DCTId;
+            rmsg.buf[0] = 3;
+            data3Health = rmsg.buf[0];
         }
         if (DEBUG && millis() - timer > 150) {
-            Serial.println("Waiting for Diagnostic Messages...");
+            Serial.print("Simulated Diagnostic Message Received with ID: ");
+            Serial.println(rmsg.id);
+            delay(50); // Simulate time between messages
         }
     }
 
-    Serial.println(data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
+    // Serial.println(data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
     return (data1Health >= 2 && data2Health >= 2 && data3Health >= 2);
 }
 
@@ -125,8 +140,32 @@ void ECU::InitialStart() {
 void ECU::run() {
     if(!driveState) {
         //TODO: SHOULD THIS SEND A START FAULT NOTICE TO THE DRIVER???
-        attemptStart();
-
+        if(!attemptStart()) {
+            Serial.println("INITIAL START FALIED");
+        }
+    }     
+    // DEBUG CAN message simulation
+    if (DEBUG) {
+        rmsg.id = ReservedIDs::Throttle1PositionId;
+        rmsg.buf[0] = 1023; // Simulated throttle value
+        rmsg.buf[1] = 1023;
+        route();
+        rmsg.id = ReservedIDs::Throttle2PositionId;
+        Serial.println(rmsg.id);
+        rmsg.buf[0] = 500; // Simulated throttle value
+        rmsg.buf[1] = 500;
+        route();
+        // route();
+        // rmsg.id = ReservedIDs::BrakePressureId;
+        // route();
+        // rmsg.id = ReservedIDs::StartSwitchId;
+        // route();
+        // rmsg.id = ReservedIDs::DriveModeId;
+        // route();
+        // rmsg.id = ReservedIDs::ThrottleMinId;
+        // route();
+        // rmsg.id = ReservedIDs::ThrottleMaxId;
+        // route();
     }
     // read coms CAN line 
     if(comsCAN.read(rmsg)) {
@@ -200,20 +239,41 @@ void ECU::route() {
 
 void ECU::updateThrottle() {
     unpacker.reset(rmsg.buf);
+    if (DEBUG)
+    {
+        Serial.print("Received Throttle CAN ID: ");
+        Serial.println(rmsg.id);
+        Serial.print("Unpacked Value: ");
+        Serial.println(unpacker.unpack<int32_t>());
+    }
     if(rmsg.id == ReservedIDs::Throttle1PositionId) {
         throttle.setThrottle1(unpacker.unpack<int32_t>());
         throttle1UPDATE = true;
     } else {
         throttle.setThrottle2(unpacker.unpack<int32_t>());
+        if (DEBUG) {
+            Serial.println("Throttle 2 Updated");
+        }
         throttle2UPDATE = true;
     }
     if(!throttle1UPDATE || !throttle2UPDATE) { // exits if both haven't been updated
+        if (DEBUG) {
+            Serial.println("Waiting for both throttle inputs to be updated");
+        }
         return;
     }
 
     torqueRequested = throttle.calculateTorque();
+    if (DEBUG) {
+        Serial.print("Calculated Torque: ");
+        Serial.println(torqueRequested);
+    }
 
     throttleCode = throttle.checkError();
+    if (DEBUG) {
+        Serial.print("Throttle Error Code: ");
+        Serial.println(throttleCode);
+    }
 
     throttleOK = (throttleCode == 0);
     
@@ -226,6 +286,10 @@ void ECU::updateThrottle() {
 
     //Send that command to the motor
     sendMotorCommand(torqueRequested);
+    if (DEBUG) {
+        Serial.print("Torque Requested: ");
+        Serial.println(torqueRequested);
+    }
 }
 
 // brake error handling
@@ -391,7 +455,11 @@ bool ECU::attemptStart() {
     //TODO: For Debugging purposes only
     // Debug
     // carIsGood = true;
-    // tractiveActive = true;
+    //tractiveActive = true;
+    if (DEBUG) {
+        InitialStart();
+        return true;
+    }
 
     if(brake.getBrakeActive() && !startFault && tractiveActive && carIsGood) {
         if(startSwitchState) {
