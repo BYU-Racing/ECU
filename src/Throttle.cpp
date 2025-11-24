@@ -75,7 +75,12 @@ void Throttle::setThrottle2(int input) {
 int Throttle::calculateTorque() {
     torque = (throttle1 + throttle2) / 2;
 
+    Serial.print("Raw Torque: ");
+    Serial.println(torque);
+
     torque = consultMAGI(torque);
+    Serial.print("ConsultMAGI Torque: ");
+    Serial.println(torque);
 
     if(torque < 0) {
         torque = 0;

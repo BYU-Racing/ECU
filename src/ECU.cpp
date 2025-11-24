@@ -18,6 +18,8 @@ ECU::ECU() {
     tractiveActive = true; //For testing until we come up with a good way to read tractive
 }
 
+int simulatedThrottle = 0;
+
 void ECU::setCAN(FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCANin, FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> motorCANin) {
     comsCAN = comsCANin;
     motorCAN = motorCANin;
@@ -146,14 +148,19 @@ void ECU::run() {
     }     
     // DEBUG CAN message simulation
     if (DEBUG) {
+        // Simulate receiving throttle messages for testing
+        simulatedThrottle += 10;
+        if (simulatedThrottle > 1023) {
+            simulatedThrottle = 0;
+        }
         rmsg.id = ReservedIDs::Throttle1PositionId;
-        rmsg.buf[0] = 1023; // Simulated throttle value
-        rmsg.buf[1] = 1023;
+        rmsg.buf[0] = simulatedThrottle; // Simulated throttle value
+        rmsg.buf[1] = simulatedThrottle;
         route();
         rmsg.id = ReservedIDs::Throttle2PositionId;
         Serial.println(rmsg.id);
-        rmsg.buf[0] = 500; // Simulated throttle value
-        rmsg.buf[1] = 500;
+        rmsg.buf[0] = simulatedThrottle; // Simulated throttle value
+        rmsg.buf[1] = simulatedThrottle;
         route();
         // route();
         // rmsg.id = ReservedIDs::BrakePressureId;
