@@ -17,6 +17,8 @@ class ECU {
         FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> comsCAN;
         FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> motorCAN;
         CAN_message_t rmsg;
+        CAN_message_t rmsg_coms;
+        CAN_message_t rmsg_motor;
         CAN_message_t motorCommand;
 
         //State Vars
@@ -26,7 +28,7 @@ class ECU {
         bool carIsGood = true;
 
         // change drivemode!
-        int driveMode = 0; //0 = Full beans, 1 = Endurance, 2 = SkidPad
+        int driveMode = 2; //0 = Full beans, 1 = Endurance, 2 = SkidPad
 
         //MONITORING VARS
         BufferPacker<8> unpacker;
@@ -132,11 +134,11 @@ class ECU {
 
         void route(); // -> ROUTES DATA TO CORRECT SENSOR OP
 
+        void forwardToDashboard(const CAN_message_t &msg);
+
         void shutdown();
 
         void pingInverter();
-
-
 
 
         //Individual Sensor Operations

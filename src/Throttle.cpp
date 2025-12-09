@@ -53,8 +53,8 @@ void Throttle::setThrottle2(int input) {
     Serial.print("T2: ");
     Serial.println(input);
     //Removing this so I can do the same throttle for testing on flatcar
-    //this->throttle2 = map(-input, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
-    this->throttle2 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
+    this->throttle2 = map(-input, -maxT2, -minT2, MIN_THROTTLE_OUTPUT, maxTorque);
+    // this->throttle2 = map(input, minT1, maxT1, MIN_THROTTLE_OUTPUT, maxTorque);
 }
 
 int Throttle::calculateTorque() {

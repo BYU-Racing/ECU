@@ -9,7 +9,7 @@ constexpr int BTO_ON_THRESHOLD = 300;
 constexpr int INVERTER_PING_FREQUENCY = 100;
 
 // Brake override patch
-bool BTOveride = true;
+bool BTOveride = false;
 
 ECU::ECU() {
     throttle = Throttle();
@@ -110,11 +110,13 @@ void ECU::run() {
 
     }
     // read coms CAN line 
-    if(comsCAN.read(rmsg)) {
+    if(comsCAN.read(rmsg_coms)) {
+        rmsg = rmsg_coms;
         route();
     }
     // read motor CAN line 
-    if(motorCAN.read(rmsg)) {
+    if(motorCAN.read(rmsg_motor)) {
+        rmsg = rmsg_motor;
         route();
     }
 
@@ -145,6 +147,7 @@ void ECU::pingInverter() {
 void ECU::route() {
 
     switch (rmsg.id) {
+       // incoming sensor/command messages (CAN1) 
         case ReservedIDs::Throttle1PositionId:
             updateThrottle();
             break;
@@ -166,6 +169,15 @@ void ECU::route() {
         case ReservedIDs::DriveModeId:
             updateDriveMode();
             break;
+
+        // motor torque messages (from inverter)
+        // forward these directly to dashboard CAN
+        // to find the following values look in the Electronics ID spreadsheet
+        case 172:  // contains torque command & torque feedback
+        case 176:  // contains high speed data (the same data as CAN ID AC AND motor speed & DC bus voltage)
+            forwardToDashboard(rmsg);
+            break;
+
         default:
             break;
 
@@ -272,7 +284,7 @@ void ECU::updateDriveMode() {
         rmsg.buf[5] = 255;
 
         motorCAN.write(rmsg); 
-        throttle.setMaxTorque(620);
+        throttle.setMaxTorque(310);
     }
 }
 
@@ -432,4 +444,10 @@ void ECU::throwError(int code) {
     rmsg.buf[7] = 0;
     // Send the error code to the Dashboard
     comsCAN.write(rmsg);
+}
+
+// Forward motor torque messages from motorCAN -> comsCAN
+void ECU::forwardToDashboard(const CAN_message_t &msg) {
+    CAN_message_t dashMsg = msg;   // Copy the motor message directly
+    comsCAN.write(dashMsg);       // Send it to the dashboard
 }
