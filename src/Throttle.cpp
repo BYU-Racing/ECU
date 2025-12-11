@@ -65,7 +65,8 @@ int Throttle::calculateTorque() {
     if(torque < 0) {
         torque = 0;
     }
-
+    // Serial.print("torque: ");
+    // Serial.println(torque);
     return torque;
 }
 
