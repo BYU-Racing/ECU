@@ -2,23 +2,28 @@
 #include "temp.h"
 #include "speed.h"
 
-#define TEMP_PIN 14
-#define SPEED_PIN 10
+#define TEMP_PIN 11
+#define SPEED_PIN 14
+
+// Create a Teensy IntervalTimer (hardware timer)
+IntervalTimer wheelSpeedTimer;
 
 void setup() {
   pinMode(TEMP_PIN, INPUT);
   pinMode(SPEED_PIN, INPUT);
-  Serial.begin(9600);
+  setSpeedPin(SPEED_PIN);
+  Serial.begin(115200);
   while (!Serial) {
     ;
   }
   Serial.println("Setup complete");
+  wheelSpeedTimer.begin(speedISR, SPEED_SENSOR_PERIOD);
 }
 
 void loop() {
 
-  Serial.print(temp_sensor_get_temp(TEMP_PIN));
+  Serial.print(analogRead(SPEED_PIN));
   Serial.print(", ");
-  Serial.println(speed_sensor_get_speed(SPEED_PIN));
+  Serial.println(getSpeed()); 
 
 }

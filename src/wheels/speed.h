@@ -1,10 +1,17 @@
 #pragma once
 #include <Arduino.h>
 
-#define TEENSY_CONSTANT 1023
-#define TS_VOLTAGE_MAX_CONSTANT 3.3
-#define DIVIDER_CONSTANT .6
+#define SAMPLE_FREQUENCY_HZ 1000
+#define SPEED_CALIBRATION_CONSTANT 1
+#define SPEED_SENSOR_PERIOD ((1.0f/SAMPLE_FREQUENCY_HZ)*1000000.0f)
+#define SAMPLE_COUNT 50 //number of rises that it uses to find average
 
-float speed_sensor_get_voltage(uint8_t pin);
+static bool checkSpeed = false;
 
-float speed_sensor_get_speed(uint8_t pin);
+void setSpeedPin(uint8_t inp);
+
+void speedISR();
+
+void calculateSpeed();
+
+float getSpeed();
