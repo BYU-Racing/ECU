@@ -1,10 +1,11 @@
 #include "speed.h"
 
-static uint8_t lastRead = 0;
+static uint8_t lastHighLowRead = 0;
 static uint32_t flowRateTimer = 0;
 static uint16_t numRises = 0;
 static uint8_t speedPin = 0;
 static float readFrequency = 0;
+static volatile bool checkSpeed = false;
 
 void setSpeedPin(uint8_t inp) {
     speedPin = inp;
@@ -15,40 +16,44 @@ void speedISR(){
 }
 
 void calculateSpeed() {
-	// Only operates when checkSpeed flag is true
-	if (!checkSpeed) { return; }
+    if (checkSpeed == false) { return; }
+    
+    checkSpeed = false;
+    //Serial.println("CHECKING SPEED");
+    uint8_t highLowRead = (analogRead(speedPin) > 300);
+    Serial.print(highLowRead);
+    //if (highLowRead) Serial.println("SENSOR HIGH");
+    //if (highLowRead) { Serial.println("DEBUG: SENSOR PIN IS HIGH"); }
+    //check for no change and then do nothing
+    if(highLowRead == lastHighLowRead){
+        ++flowRateTimer;
+        return;
+    } else {
+        lastHighLowRead = highLowRead;
+        if(highLowRead) {
+            /*counting the number of time we are riseing
+            or low to high pulses on the sensor
+            Note that the sensor is NOT PWM it is changeing frequncy
+            in stead*/
+            ++numRises;
+        }
 
-	// check to see if the current reading is high
-	uint8_t currentRead = (analogRead(speedPin) > 300);
-
-	if (currentRead == lastRead) {
-		++flowRateTimer;
-		return;
-	} else {
-		// Set the previous read value to the curretn
-		lastRead = currentRead;
-
-		if (currentRead == true) {
-			++numRises;
-		}
-
-		// wait until we have enough data samples
-		if (numRises < SAMPLE_COUNT) { 
-			return;
-		}
-
-		if(flowRateTimer > 0) {  // protects against divide by 0
-			readFrequency = SAMPLE_FREQUENCY_HZ / flowRateTimer;						
-		}
-
-		flowRateTimer = 0;
-		numRises = 0;
-		// reset the flag
-		checkSpeed = false;
-	}
-}	
+        if(numRises < SAMPLE_COUNT){
+            //do nothing if we dont have enough data points
+            return;
+        }
+        
+        if(flowRateTimer > 0){//devide my 0 protection
+            readFrequency = SAMPLE_FREQUENCY_HZ / flowRateTimer;
+        }
+        flowRateTimer = 0;
+        numRises = 0;
+    }
+}
 
 float getSpeed(){
     calculateSpeed();
     return(readFrequency / (SPEED_CALIBRATION_CONSTANT));
+
+    // return readFrequency;
 }
